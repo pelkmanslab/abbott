@@ -392,8 +392,6 @@ def test_channel_registration_workflow_varying_levels(test_data_dir):
         reference_wavelength=reference_wavelength,
         level=level,
         overwrite_input=False,
-        overwrite_output=True,
     )
-
     new_zarr_url = f"{zarr_url}_channels_registered"
     zarr.open_group(new_zarr_url, mode="r")

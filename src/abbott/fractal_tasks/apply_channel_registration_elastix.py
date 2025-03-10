@@ -102,7 +102,7 @@ def apply_channel_registration_elastix(
     """
     logger.info(zarr_url)
     logger.info(
-        f"Running `apply_channel_registration_to_image` on {zarr_url=}, "
+        f"Running `apply_registration_to_image` on {zarr_url=}, "
         f"{roi_table=}, {level=} and {reference_wavelength=}. "
         f"Using {overwrite_input=}"
     )
@@ -333,16 +333,13 @@ def write_registered_zarr(
             # Remove the reference channel from the channels to align
             for channel in channels_align:
                 if channel.wavelength_id == reference_wavelength:
-                    if overwrite:
-                        return
-                    else:
-                        generate_copy_of_reference_wavelength(
-                            zarr_url=zarr_url,
-                            data_array=data_array,
-                            new_zarr_array=new_zarr_array,
-                            region=region,
-                            reference_wavelength=reference_wavelength,
-                        )
+                    generate_copy_of_reference_wavelength(
+                        zarr_url=zarr_url,
+                        data_array=data_array,
+                        new_zarr_array=new_zarr_array,
+                        region=region,
+                        reference_wavelength=reference_wavelength,
+                    )
                     channels_align.remove(channel)
 
             # Apply transformation to each channel except reference channel
@@ -476,6 +473,19 @@ def generate_copy_of_reference_wavelength(
         region=channel_region,
         compute=True,
     )
+
+
+def get_acquisition_of_zarr_url(well_url, image_name):
+    """Get the acquisition of a given zarr_url
+
+    Args:
+        well_url: Url of the HCS plate well
+        image_name: Name of the acquisition image
+    """
+    well_meta = load_NgffWellMeta(well_url)
+    for image in well_meta.well.images:
+        if image.path == image_name:
+            return image.acquisition
 
 
 if __name__ == "__main__":
