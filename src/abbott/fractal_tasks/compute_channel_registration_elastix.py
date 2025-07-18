@@ -21,7 +21,6 @@ from pathlib import Path
 import anndata as ad
 import dask.array as da
 import itk
-import itk.itkAddImageFilterPython
 import numpy as np
 import zarr
 from fractal_tasks_core.channels import (
@@ -39,7 +38,7 @@ from fractal_tasks_core.roi import (
 from pydantic import validate_call
 from skimage.exposure import rescale_intensity
 
-from abbott.io.conversions import to_itk
+from abbott.fractal_tasks.conversions import to_itk
 from abbott.registration.itk_elastix import register_transform_only
 
 logger = logging.getLogger(__name__)

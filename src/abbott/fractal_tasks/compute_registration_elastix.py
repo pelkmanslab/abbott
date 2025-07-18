@@ -20,7 +20,7 @@ from fractal_tasks_core.tasks.io_models import InitArgsRegistration
 from pydantic import validate_call
 from skimage.exposure import rescale_intensity
 
-from abbott.io.conversions import to_itk
+from abbott.fractal_tasks.conversions import to_itk
 from abbott.registration.itk_elastix import register_transform_only
 
 logger = logging.getLogger(__name__)

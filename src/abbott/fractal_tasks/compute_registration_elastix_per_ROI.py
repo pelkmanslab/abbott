@@ -20,7 +20,7 @@ from fractal_tasks_core.tasks.io_models import InitArgsRegistration
 from pydantic import validate_call
 from skimage.exposure import rescale_intensity
 
-from abbott.io.conversions import to_itk
+from abbott.fractal_tasks.conversions import to_itk
 from abbott.registration.itk_elastix import register_transform_only
 
 logger = logging.getLogger(__name__)
@@ -240,7 +240,8 @@ def compute_registration_elastix_per_ROI(
 
         # Calculate maximum dimensions needed
         max_shape = tuple(
-            max(r, m) for r, m in zip(img_ref_masked.shape, img_acq_x_masked.shape)
+            max(r, m)
+            for r, m in zip(img_ref_masked.shape, img_acq_x_masked.shape, strict=False)
         )
 
         # Pad both arrays to maximum shape
@@ -272,7 +273,7 @@ def compute_registration_elastix_per_ROI(
 def pad_to_max_shape(array, target_shape):
     """Pad array to match target shape, handling mixed larger/smaller dimensions."""
     pad_width = []
-    for arr_dim, target_dim in zip(array.shape, target_shape):
+    for arr_dim, target_dim in zip(array.shape, target_shape, strict=False):
         diff = target_dim - arr_dim
         if diff > 0:  # array dimension is smaller
             pad_before = diff // 2

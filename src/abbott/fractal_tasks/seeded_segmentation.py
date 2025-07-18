@@ -43,8 +43,8 @@ from fractal_tasks_core.utils import (
 from pydantic import Field, validate_call
 from skimage.segmentation import watershed
 
-from abbott.io.conversions import to_itk, to_labelmap, to_numpy
-from abbott.io.itk_image import apply_image_filter, median
+from abbott.fractal_tasks.conversions import to_itk, to_labelmap, to_numpy
+from abbott.registration.itk_image import apply_image_filter, median
 from abbott.segmentation.fractal_helper_tasks import masked_loading_wrapper
 from abbott.segmentation.io_models import (
     SeededSegmentationChannelInputModel,

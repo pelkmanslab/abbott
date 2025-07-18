@@ -47,7 +47,7 @@ stardist = ["csbdeep", "stardist", "tensorflow", "tensorflow-metal ; platform_sy
 # https://docs.astral.sh/ruff
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py39"
 src = ["src"]
 
 # https://docs.astral.sh/ruff/rules

@@ -45,7 +45,7 @@ from fractal_tasks_core.utils import (
 )
 from pydantic import validate_call
 
-from abbott.io.conversions import to_itk, to_numpy
+from abbott.fractal_tasks.conversions import to_itk, to_numpy
 from abbott.registration.fractal_helper_tasks import (
     masked_loading_wrapper_registration,
 )
@@ -525,7 +525,7 @@ def apply_registration_ROI(
     ref_shape = get_shape_from_indices(ref_indices)
     move_shape = get_shape_from_indices(indices)
 
-    max_shape = tuple(max(r, m) for r, m in zip(ref_shape, move_shape))
+    max_shape = tuple(max(r, m) for r, m in zip(ref_shape, move_shape, strict=False))
     pad_width = get_pad_width(ref_shape, max_shape)
 
     # Pad to same shape as during compute_registration_elastix task
@@ -577,7 +577,7 @@ def pad_to_max_shape(array, target_shape):
 
     """
     pad_width = []
-    for arr_dim, target_dim in zip(array.shape, target_shape):
+    for arr_dim, target_dim in zip(array.shape, target_shape, strict=False):
         diff = target_dim - arr_dim
         if diff > 0:  # array dimension is smaller
             pad_before = diff // 2
@@ -596,7 +596,7 @@ def get_pad_width(array_shape, max_shape):
         max_shape: Target shape to pad to (z,y,x)
     """
     pad_width = []
-    for arr_dim, target_dim in zip(array_shape, max_shape):
+    for arr_dim, target_dim in zip(array_shape, max_shape, strict=False):
         diff = target_dim - arr_dim
         if diff > 0:  # array dimension is smaller
             pad_before = diff // 2

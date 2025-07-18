@@ -15,8 +15,8 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import anndata as ad
 import dask.array as da
@@ -42,7 +42,7 @@ from fractal_tasks_core.utils import (
 )
 from pydantic import validate_call
 
-from abbott.io.conversions import to_itk, to_numpy
+from abbott.fractal_tasks.conversions import to_itk, to_numpy
 from abbott.registration.itk_elastix import (
     adapt_itk_params,
     apply_transform,

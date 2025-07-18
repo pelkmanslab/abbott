@@ -2,6 +2,7 @@
 
 from fractal_task_tools.task_models import (
     CompoundTask,
+    ConverterCompoundTask,
     ParallelTask,
 )
 
@@ -113,5 +114,16 @@ TASK_LIST = [
         category="Image Processing",
         tags=["3D"],
         docs_info="file:docs_info/upsample_label_image.md",
+    ),
+    ConverterCompoundTask(
+        name="Convert abbott-legacy H5 to OME-Zarr",
+        executable_init="fractal_tasks/convert_abbottlegacyh5_to_omezarr_init.py",
+        executable="fractal_tasks/convert_abbottlegacyh5_to_omezarr_compute.py",
+        meta_init={"cpus_per_task": 1, "mem": 4000},
+        meta={"cpus_per_task": 16, "mem": 60000},
+        category="Conversion",
+        modality="HCS",
+        tags=["Yokogawa", "Cellvoyager", "3D"],
+        docs_info="file:docs_info/convert_abbottlegacyh5_omezarr.md",
     ),
 ]
