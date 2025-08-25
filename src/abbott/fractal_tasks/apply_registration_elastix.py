@@ -98,7 +98,7 @@ def apply_registration_elastix(
     acquisition_ids = ome_zarr_well.acquisition_ids
 
     acq_dict = get_acquisition_paths(ome_zarr_well)
-    print(f"{acq_dict=}")
+    logger.info(f"{acq_dict=}")
 
     if reference_acquisition not in acquisition_ids:
         raise ValueError(
@@ -118,9 +118,36 @@ def apply_registration_elastix(
         ref_path = acq_dict[reference_acquisition][0]
     reference_zarr_url = f"{well_url}/{ref_path}"
 
-    logger.info(
-        f"Using {reference_zarr_url=} as the reference acquisition for registration."
-    )
+    # If the reference zarr url is zarr_url, copy data from reference_zarr_url
+    # to new_zarr_url and skip the registration.
+    if reference_zarr_url == zarr_url:
+        logger.info(
+            "Skipping registration for the reference acquisition. "
+            "Using the original data as registered data."
+        )
+        if overwrite_input:
+            image_list_updates = dict(image_list_updates=[dict(zarr_url=zarr_url)])
+
+        else:
+            shutil.copytree(zarr_url, new_zarr_url, dirs_exist_ok=True)
+            image_list_updates = dict(
+                image_list_updates=[
+                    dict(
+                        zarr_url=new_zarr_url,
+                        origin=zarr_url,
+                        types=dict(registered=True),
+                    )
+                ]
+            )
+            # Update the metadata of the the well
+            well_url, new_img_path = _split_well_path_image_path(new_zarr_url)
+            _update_well_metadata(
+                well_url=well_url,
+                old_image_path=old_img_path,
+                new_image_path=new_img_path,
+            )
+
+        return image_list_updates
 
     # Open the OME-Zarr containers for both the reference and moving images
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
@@ -188,7 +215,7 @@ def apply_registration_elastix(
         else:
             logger.warning(
                 f"{zarr_url} contained a table that is not a standard "
-                "ROI table. The `Apply Registration Warpfield` task is "
+                "ROI table. The `Apply Registration (elastix)` task is "
                 "best used before additional e.g. feature tables are generated."
             )
             new_ome_zarr.add_table(
@@ -264,25 +291,25 @@ def write_registered_zarr(
     """
     # Get reference OME-Zarr container and images
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
+    ref_roi_table = ome_zarr_ref.get_table(roi_table_name)
 
     ome_zarr_new = ome_zarr_mov.derive_image(
         store=new_zarr_url,
         ref_path="0",
-        copy_labels=True,
-        copy_tables=True,
+        copy_labels=False,
+        copy_tables=False,
         overwrite=True,
     )
-
-    # In case the zarr_url is the same as the reference_zarr_url,
-    # we skip the registration and just copy the data.
-    if zarr_url == reference_zarr_url:
-        logger.info(
-            "Skipping registration for the reference acquisition. "
-            "Using the original data as registered data."
-        )
-        return
+    ome_zarr_new.add_table(roi_table_name, table=ref_roi_table)
 
     if use_masks:
+        new_label = ome_zarr_new.derive_label(masking_label_name, overwrite=True)
+        # Get reference masking label
+        ref_masking_label = ome_zarr_ref.get_label(masking_label_name, path="0")
+        ref_masking_label = ref_masking_label.get_array(mode="dask")
+        new_label.set_array(ref_masking_label)
+        new_label.consolidate()
+
         ref_images = ome_zarr_ref.get_masked_image(
             masking_label_name=masking_label_name,
             masking_table_name=roi_table_name,
@@ -305,14 +332,17 @@ def write_registered_zarr(
         new_images = ome_zarr_new.get_image()
 
     roi_table_mov = ome_zarr_mov.get_table(roi_table_name)
+    roi_table_ref = ome_zarr_ref.get_table(roi_table_name)
 
     # TODO: Add sanity checks on the 2 ROI tables:
     # 1. The number of ROIs need to match
     # 2. The size of the ROIs need to match
     # (otherwise, we can't assign them to the reference regions)
-    for i_ROI, mov_roi in enumerate(roi_table_mov.rois()):
+    for ref_roi in roi_table_ref.rois():
+        mov_roi = roi_table_mov.get(ref_roi.name)
         # Load registration parameters
-        fn_pattern = f"{roi_table_name}_roi_{i_ROI}_t*.txt"
+        ROI_id = mov_roi.name
+        fn_pattern = f"{roi_table_name}_roi_{ROI_id}_t*.txt"
         parameter_path = Path(zarr_url) / "registration"
         parameter_files = sorted(parameter_path.glob(fn_pattern))
         parameter_object = load_parameter_files([str(x) for x in parameter_files])
@@ -326,11 +356,11 @@ def write_registered_zarr(
             for ind_ch in range(num_channels):
                 if use_masks:
                     data_ref = ref_images.get_roi_masked(
-                        label=i_ROI + 1,
+                        label=int(ROI_id),
                         c=ind_ch,
                     ).squeeze()
                     data_mov = mov_images.get_roi_masked(
-                        label=i_ROI + 1,
+                        label=int(ROI_id),
                         c=ind_ch,
                     ).squeeze()
 
@@ -339,7 +369,7 @@ def write_registered_zarr(
                         max(r, m)
                         for r, m in zip(data_ref.shape, data_mov.shape, strict=False)
                     )
-                    pad_width = get_pad_width(data_mov.shape, max_shape)
+                    pad_width = get_pad_width(data_ref.shape, max_shape)
                     data_mov = pad_to_max_shape(data_mov, max_shape)
 
                 else:
@@ -361,7 +391,7 @@ def write_registered_zarr(
                     # Bring back to original shape
                     data_mov_reg = unpad_array(data_mov_reg, pad_width)
                     new_images.set_roi_masked(
-                        label=i_ROI + 1,
+                        label=int(ROI_id),
                         c=ind_ch,
                         patch=np.expand_dims(data_mov_reg, axis=0),
                     )
@@ -376,10 +406,10 @@ def write_registered_zarr(
         elif axes_list == ["z", "y", "x"]:
             if use_masks:
                 data_ref = ref_images.get_roi_masked(
-                    label=i_ROI + 1,
+                    label=int(ROI_id),
                 )
                 data_mov = mov_images.get_roi_masked(
-                    label=i_ROI + 1,
+                    label=int(ROI_id),
                 )
 
                 # Pad to the same shape
@@ -391,7 +421,7 @@ def write_registered_zarr(
                 data_mov = pad_to_max_shape(data_mov, max_shape)
             else:
                 data_mov = mov_images.get_roi(
-                    roi=i_ROI,
+                    roi=mov_roi,
                 )
 
             # Apply the registration
@@ -405,12 +435,12 @@ def write_registered_zarr(
                 # Bring back to original shape
                 data_mov_reg = unpad_array(data_mov_reg, pad_width)
                 new_images.set_roi_masked(
-                    label=i_ROI + 1,
+                    label=int(ROI_id),
                     patch=data_mov_reg,
                 )
             else:
                 new_images.set_roi(
-                    label=i_ROI,
+                    roi=ref_roi,
                     patch=data_mov_reg,
                 )
             new_images.consolidate()
@@ -434,8 +464,9 @@ def write_registered_zarr(
             )
 
     # Remove labels and tables from new_zarr_url
-    shutil.rmtree(f"{new_zarr_url}/labels")
     shutil.rmtree(f"{new_zarr_url}/tables")
+    if use_masks:
+        shutil.rmtree(f"{new_zarr_url}/labels")
 
 
 if __name__ == "__main__":

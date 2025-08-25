@@ -159,23 +159,23 @@ def compute_registration_elastix(
     if pxl_sizes_zyx_ref_full_res != pxl_sizes_zyx_mov_full_res:
         raise ValueError(
             "Pixel sizes need to be equal between acquisitions "
-            "for warpfield registration."
+            "for elastix registration."
         )
 
     num_ROIs = len(ref_roi_table.rois())
     for i_ROI, ref_roi in enumerate(ref_roi_table.rois()):
-        mov_roi = mov_roi_table.rois()[i_ROI]
+        ROI_id = ref_roi.name
         logger.info(
             f"Now processing ROI {i_ROI+1}/{num_ROIs} " f"for {wavelength_id=}."
         )
 
         if use_masks:
             img_ref = ref_images.get_roi_masked(
-                label=i_ROI + 1,
+                label=int(ROI_id),
                 c=channel_index_ref,
             ).squeeze()
             img_mov = mov_images.get_roi_masked(
-                label=i_ROI + 1,
+                label=int(ROI_id),
                 c=channel_index_align,
             ).squeeze()
 
@@ -192,6 +192,7 @@ def compute_registration_elastix(
                 roi=ref_roi,
                 c=channel_index_ref,
             ).squeeze()
+            mov_roi = mov_roi_table.get(ROI_id)
             img_mov = mov_images.get_roi(
                 roi=mov_roi,
                 c=channel_index_align,
@@ -231,7 +232,9 @@ def compute_registration_elastix(
         for i in range(trans.GetNumberOfParameterMaps()):
             trans_map = trans.GetParameterMap(i)
             # FIXME: Switch from ROI index to ROI names?
-            fn = Path(zarr_url) / "registration" / (f"{roi_table}_roi_{i_ROI}_t{i}.txt")
+            fn = (
+                Path(zarr_url) / "registration" / (f"{roi_table}_roi_{ROI_id}_t{i}.txt")
+            )
             fn.parent.mkdir(exist_ok=True, parents=True)
             trans.WriteParameterFile(trans_map, fn.as_posix())
 

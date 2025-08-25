@@ -69,15 +69,16 @@ def test_registration_workflow(test_data_dir):
         )
 
     # Test zarr_url that needs to be registered
-    apply_registration_elastix(
-        zarr_url=zarr_urls[1],
-        roi_table=roi_table,
-        reference_acquisition=reference_acquisition,
-        output_image_suffix="registered",
-        use_masks=False,
-        masking_label_name=None,
-        overwrite_input=False,
-    )
+    for zarr_url in zarr_urls:
+        apply_registration_elastix(
+            zarr_url=zarr_url,
+            roi_table=roi_table,
+            reference_acquisition=reference_acquisition,
+            output_image_suffix="registered",
+            use_masks=False,
+            masking_label_name=None,
+            overwrite_input=False,
+        )
 
 
 def test_registration_workflow_varying_levels(test_data_dir):
@@ -112,15 +113,16 @@ def test_registration_workflow_varying_levels(test_data_dir):
         )
 
     # Test zarr_url that needs to be registered
-    apply_registration_elastix(
-        zarr_url=zarr_urls[1],
-        roi_table=roi_table,
-        reference_acquisition=reference_acquisition,
-        output_image_suffix="registered",
-        use_masks=False,
-        masking_label_name=None,
-        overwrite_input=True,
-    )
+    for zarr_url in zarr_urls:
+        apply_registration_elastix(
+            zarr_url=zarr_url,
+            roi_table=roi_table,
+            reference_acquisition=reference_acquisition,
+            output_image_suffix="registered",
+            use_masks=False,
+            masking_label_name=None,
+            overwrite_input=True,
+        )
 
 
 def test_registration_workflow_masked(test_data_dir):
@@ -205,7 +207,6 @@ def test_registration_workflow_masked(test_data_dir):
 #         overwrite_input=False,
 #     )
 
-
 # def test_registration_workflow_warpfield_masked(test_data_dir):
 #     # Task-specific arguments
 #     wavelength_id = "A01_C01"
@@ -235,15 +236,17 @@ def test_registration_workflow_masked(test_data_dir):
 #         )
 
 #     # Test zarr_url that needs to be registered
-#     apply_registration_warpfield(
-#         zarr_url=zarr_urls[1],
-#         roi_table=roi_table,
-#         reference_acquisition=reference_acquisition,
-#         output_image_suffix="registered_masked",
-#         use_masks=True,
-#         masking_label_name=label_name,
-#         overwrite_input=False,
-#     )
+#     for zarr_url in zarr_urls:
+#         apply_registration_warpfield(
+#             zarr_url=zarr_url,
+#             roi_table=roi_table,
+#             reference_acquisition=reference_acquisition,
+#             level=level,
+#             output_image_suffix="registered_masked",
+#             use_masks=True,
+#             masking_label_name=label_name,
+#             overwrite_input=False,
+#         )
 
 
 def test_channel_registration_workflow(test_data_dir):

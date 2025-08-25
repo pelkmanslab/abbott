@@ -8,7 +8,7 @@
       "tags": [
         "Multiplexing"
       ],
-      "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the elastix library.\n- Needs Elastix profiles to configure the registration.\n- Calculates registration transforms e.g. per FOV by providing FOV_ROI_table.\n- Can handle cases where there are more than one embryo / organoid in a FOV if each ROI e.g. embryo / organoid is masked by a linked label (e.g. calculated by`scMultiplex Calculate Object Linking`) and corresponding masking_roi_table.\n- Calculates transformations for **specified regions of interest (ROIs)** and stores the results in a registration subfolder per OME-Zarr image.\n- Typically used as the first task in a workflow, followed by `Apply Registration (elastix)`.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n",
+      "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the elastix library.\n- Needs Elastix profiles to configure the registration.\n- Calculates registration transforms e.g. per FOV by providing FOV_ROI_table.\n- Can handle cases where there are more than one embryo / organoid in a FOV if each ROI e.g. embryo / organoid is masked by a linked label (e.g. calculated by`scMultiplex Calculate Object Linking`) and corresponding masking_roi_table. Assumes label_id to be the same across cycles, but soesn't require FOVs to have the same shape.\n- Typically used as the first task in a workflow, followed by `Apply Registration (elastix)`.\n\n### Output\n- Calculates transformation parameters for **per (ROI)** and stores the results in a registration subfolder of OME-Zarr container.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n",
       "type": "compound",
       "executable_non_parallel": "fractal_tasks/init_registration_hcs.py",
       "executable_parallel": "fractal_tasks/compute_registration_elastix.py",
@@ -152,8 +152,8 @@
       "type": "parallel",
       "executable_parallel": "fractal_tasks/apply_registration_elastix.py",
       "meta_parallel": {
-        "cpus_per_task": 1,
-        "mem": 4000
+        "cpus_per_task": 16,
+        "mem": 60000
       },
       "args_schema_parallel": {
         "additionalProperties": false,
@@ -209,18 +209,23 @@
     },
     {
       "name": "Compute Registration (warpfield)",
+      "input_types": {
+        "is_3D": true
+      },
       "category": "Registration",
       "modality": "HCS",
       "tags": [
-        "Multiplexing"
+        "Multiplexing",
+        "3D"
       ],
-      "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the warpfield library.\n- Needs warpfield registration recipe to configure the registration, otherwise applying default registration.\n- Calculates registration transforms e.g. per FOV by providing FOV_ROI_table.\n- Can handle cases where there are more than one embryo / organoid in a FOV if each ROI e.g. embryo / organoid is masked by a linked label (e.g. calculated by`scMultiplex Calculate Object Linking`) and corresponding masking_roi_table.\n- Calculates transformations for **specified regions of interest (ROIs)** and stores the results in a registration subfolder per OME-Zarr image.\n- Typically used as the first task in a workflow, followed by `Apply Registration (warpfield)`.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n",
+      "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets based on [warpfield](https://github.com/danionella/warpfield).\n- Takes warpfield registration recipe, if None is provided default registration parameters are applied.\n- Can handle cases where there are more than one embryo / organoid in a FOV if each ROI e.g. embryo / organoid is masked by a linked label (e.g. calculated by`scMultiplex Calculate Object Linking`) and corresponding masking_roi_table. Assumes label_id to be the same across cycles, but soesn't require FOVs to have the same shape.\n- Typically used as the first task in a workflow, followed by `Apply Registration (warpfield)`.\n\n### Output\n- Calculates transformation **warpmap** for **per (ROI)** and stores the results in a registration subfolder of OME-Zarr container.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n- Requires CUDA-compatible GPU with Cuda > 12.x .\n- For **Pelkmans cluster** the following parameters need to be provided manually during Worker Initialisation:\n    ```\n    #SBATCH -p gpu-cuda12\n    export PATH=/usr/local/cuda-12.1/bin:$PATH\n    export LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH\n    ```\n",
       "type": "compound",
       "executable_non_parallel": "fractal_tasks/init_registration_hcs.py",
       "executable_parallel": "fractal_tasks/compute_registration_warpfield.py",
       "meta_parallel": {
         "cpus_per_task": 4,
-        "mem": 16000
+        "mem": 16000,
+        "needs_gpu": true
       },
       "args_schema_non_parallel": {
         "additionalProperties": false,
@@ -282,10 +287,9 @@
             "description": "Intialization arguments provided by `image_based_registration_hcs_init`. They contain the reference_zarr_url that is used for registration. (standard argument for Fractal tasks, managed by Fractal server)."
           },
           "level": {
-            "default": 0,
             "title": "Level",
             "type": "integer",
-            "description": "Pyramid level of the image to be used for registration. Choose `0` to process at full resolution. Currently only level 0 is supported."
+            "description": "Pyramid level of the image to be used for registration."
           },
           "wavelength_id": {
             "title": "Wavelength Id",
@@ -296,6 +300,12 @@
             "title": "Path To Registration Recipe",
             "type": "string",
             "description": "Path to the warpfield .yml registration recipe. This parameter is optional, if not provided, the default .yml recipe will be used."
+          },
+          "save_reg_video": {
+            "default": false,
+            "title": "Save Reg Video",
+            "type": "boolean",
+            "description": "If `True`, saves the video showing the registration in registration folder. Default: `False`."
           },
           "roi_table": {
             "default": "FOV_ROI_table",
@@ -313,11 +323,18 @@
             "title": "Masking Label Name",
             "type": "string",
             "description": "Optional label for masking ROI e.g. `embryo`."
+          },
+          "overwrite": {
+            "default": false,
+            "title": "Overwrite",
+            "type": "boolean",
+            "description": "If `True`, overwrite existing registration files. Default: `False`."
           }
         },
         "required": [
           "zarr_url",
           "init_args",
+          "level",
           "wavelength_id"
         ],
         "type": "object",
@@ -328,7 +345,8 @@
     {
       "name": "Apply Registration (warpfield)",
       "input_types": {
-        "registered": false
+        "registered": false,
+        "is_3D": true
       },
       "output_types": {
         "registered": true
@@ -336,14 +354,16 @@
       "category": "Registration",
       "modality": "HCS",
       "tags": [
-        "Multiplexing"
+        "Multiplexing",
+        "3D"
       ],
       "docs_info": "### Purpose\n- **Applies pre-calculated registration** from `Compute Registration (warpfield)` task to images in an **HCS** OME-Zarr dataset, aligning all acquisitions to a specified reference acquisition.\n- Replaces the non-aligned image with the newly aligned image in the dataset if `overwrite input` is selected.\n- Typically used as the second task in a workflow, following `Compute Registration (warpfield)`.\n\n### Limitations\n- If `overwrite input` is selected, the non-aligned image is permanently deleted, which may impact workflows requiring access to the original images.\n",
       "type": "parallel",
       "executable_parallel": "fractal_tasks/apply_registration_warpfield.py",
       "meta_parallel": {
-        "cpus_per_task": 1,
-        "mem": 4000
+        "cpus_per_task": 16,
+        "mem": 60000,
+        "needs_gpu": true
       },
       "args_schema_parallel": {
         "additionalProperties": false,
@@ -358,6 +378,12 @@
             "title": "Reference Acquisition",
             "type": "integer",
             "description": "Which acquisition to register against. Uses the OME-NGFF HCS well metadata acquisition keys to find the reference acquisition."
+          },
+          "level": {
+            "default": 0,
+            "title": "Level",
+            "type": "integer",
+            "description": "Which resolution level to apply the registration on. Must match the level that was used during computation of the registration."
           },
           "output_image_suffix": {
             "default": "registered",
@@ -385,7 +411,7 @@
             "default": true,
             "title": "Overwrite Input",
             "type": "boolean",
-            "description": "Whether the old image data should be replaced with the newly registered image data. Currently only implemented for `overwrite_input=True`."
+            "description": "Whether the old image data should be replaced with the newly registered image data."
           }
         },
         "required": [
@@ -399,13 +425,11 @@
     },
     {
       "name": "Compute Channel Registration (elastix)",
-      "input_types": {
-        "channels_registered": false
-      },
       "category": "Registration",
       "modality": "HCS",
       "tags": [
-        "Multiplexing"
+        "Multiplexing",
+        "3D"
       ],
       "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the elastix library.\n- Needs Elastix profiles to configure the registration.\n- Processes images grouped by well, under the assumption that each well contains one image per acquisition.\n- Calculates transformations for **specified regions of interest (ROIs)** and stores the results in a registration subfolder per OME-Zarr image.\n- Typically used as the first task in a workflow, followed by `Apply Channel Registration (elastix)`.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n- Assumes each well contains a single image per acquisition.\n",
       "type": "parallel",
@@ -481,7 +505,8 @@
       "category": "Registration",
       "modality": "HCS",
       "tags": [
-        "Multiplexing"
+        "Multiplexing",
+        "3D"
       ],
       "docs_info": "### Purpose\n- **Applies pre-calculated registration** from `Calculate Channel Registration (elastix)` task to images in an **HCS** OME-Zarr dataset, aligning all channels of an acquisition to a specified reference wavelength.\n- This task is useful if there are wavelength- and sample-dependent chromatic shifts.\n- Replaces the non-aligned image with the newly aligned image in the dataset if `overwrite input` is selected.\n- Typically used as the second task in a workflow, following `Calculate Channel Registration (elastix)`.\n\n### Limitations\n- If `overwrite input` is selected, the non-aligned image is permanently deleted, which may impact workflows requiring access to the original images.\n",
       "type": "parallel",

@@ -12,6 +12,8 @@ source = "vcs"
 [tool.hatch.build.targets.wheel]
 packages = ["src/abbott"]
 
+[tool.hatch.metadata]
+allow-direct-references = true # for warpfield build from github
 
 # Project metadata (see https://peps.python.org/pep-0621)
 [project]
@@ -29,24 +31,21 @@ requires-python = ">=3.11"
 dependencies = [
     "fractal-tasks-core == 1.5.3", 
     "fractal-task-tools == 0.0.12",
-    "itk", 
+    "itk<5.4.4", 
     "itk-elastix", 
     "numpy<2.0",
     "h5py", 
     "ngio",
     "scikit-image",
-    "contourpy<1.3.3", #C++ compiler error 
-    "optree<0.17.0", #C++ compiler error 
-    "fsspec",
-    "pyarrow<15.0.0",
-    "warpfield",
+    "pyarrow ==20.0.0",
+    "warpfield @ git+https://github.com/rhornb/warpfield.git@dev" # pin to cuda11
 ]
 
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies)
 [project.optional-dependencies]
 dev = ["devtools", "hatch", "pytest", "requests", "jsonschema", "ruff", "pre-commit", "pooch", "pytest-cov"]
-stardist = ["csbdeep", "stardist", "tensorflow", "tensorflow-metal ; platform_system == 'Darwin'"]
+stardist = ["csbdeep", "optree", "stardist", "tensorflow", "tensorflow-metal ; platform_system == 'Darwin'"]
 
 # https://docs.astral.sh/ruff
 [tool.ruff]
