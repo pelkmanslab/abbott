@@ -3,7 +3,7 @@
 [![CI Status](https://github.com/pelkmanslab/abbott/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/pelkmanslab/abbott/actions/workflows/build_and_test.yml)
 [![codecov](https://codecov.io/github/pelkmanslab/abbott/graph/badge.svg?token=BF9NP4YLO6)](https://codecov.io/github/pelkmanslab/abbott)
 
-3D Multiplexed Image Analysis Workflows
+3D Multiplexed Image Analysis Task Collection
 
 ## Available Tasks
 
@@ -26,7 +26,7 @@
 
 ## Installation
 
-To install this task package on a Fractal server, get the whl in the Github release and use the local task collection.
+To install this task package on a Fractal server, get the whl from the Github release and use the local task collection.
 
 To install this package locally:
 ```
