@@ -52,7 +52,7 @@ from abbott.segmentation.io_models import (
 )
 from abbott.segmentation.segmentation_utils import (
     SeededSegmentationCustomNormalizer,
-    _normalize_seeded_segmentation_channel,
+    normalize_seeded_segmentation_channel,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ def segment_ROI(
         "[segment_ROI] START |" f" x: {type(x)}, {x.shape} |" f" {normalize.norm_type=}"
     )
 
-    channel = _normalize_seeded_segmentation_channel(channel, normalize)
+    channel = normalize_seeded_segmentation_channel(channel, normalize)
 
     seeds = x
     # Apply morphological filter to label image

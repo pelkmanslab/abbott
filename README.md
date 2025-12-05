@@ -17,7 +17,7 @@
 | Apply Registration (warpfield) | Apply warpfield registration.|✓|
 | Compute Channel Registration (elastix) | Compute similarity registration of all channels in an acquisition to a reference channel.|✓|
 | Apply Channel Registration (elastix) | Apply similarity registration to multi-channel acquisition.|✓|
-| Stardist Segmentation | Segment images using Stardist. |✓|
+| Stardist Segmentation | Moved to [abbott-stardist-task](https://github.com/pelkmanslab/abbott-stardist-task) |✓|
 | Seeded Watershed Segmentation | Performs segmentation (e.g., of cells) using a label image as seeds and an intensity image (e.g., membrane stain) for boundary detection. |✓|
 | Upsample Label Image | Upsamples label images to the highest image resolution. Useful if segmentation was peformed on e.g. level 1 to avoid resolution mismatch in downstream tasks. |✓|
 
@@ -34,16 +34,10 @@ git clone https://github.com/pelkmanslab/abbott
 cd abbott
 pip install -e .
 ```
-To also run Stardist task locally:
-```
-git clone https://github.com/pelkmanslab/abbott
-cd abbott
-pip install -e ".[stardist]"
-```
 
 For development:
 ```
 git clone https://github.com/pelkmanslab/abbott
 cd abbott
-pip install -e ".[dev,stardist]" 
+pip install -e ".[dev]" 
 ```

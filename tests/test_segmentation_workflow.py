@@ -7,15 +7,11 @@ from devtools import debug
 from fractal_tasks_core.zarr_utils import OverwriteNotAllowedError
 
 from abbott.fractal_tasks.seeded_segmentation import seeded_segmentation
-from abbott.fractal_tasks.stardist_segmentation import stardist_segmentation
 from abbott.segmentation.io_models import (
     FilterType,
     SeededSegmentationChannelInputModel,
     SeededSegmentationCustomNormalizer,
-    StardistChannelInputModel,
-    StardistModels,
 )
-from abbott.segmentation.segmentation_utils import StardistCustomNormalizer
 
 
 @pytest.fixture(scope="function")
@@ -30,50 +26,6 @@ def test_data_dir_2d(tmp_path: Path, zenodo_zarr_stardist: list) -> str:
     return dest_dir
 
 
-def test_stardist_segmentation_workflow_2d(test_data_dir_2d):
-    # Task-specific arguments
-    input_ROI_table = "FOV_ROI_table"
-    stardist_model = StardistModels.VERSATILE_FLUO_2D
-    output_label_name = "nuclei_stardist"
-    zarr_url = f"{test_data_dir_2d}/B/03/0"
-
-    channel = StardistChannelInputModel(
-        wavelength_id="A01_C01",
-        normalization=StardistCustomNormalizer(),
-    )
-
-    stardist_segmentation(
-        zarr_url=zarr_url,
-        level=0,
-        channel=channel,
-        input_ROI_table=input_ROI_table,
-        model_type=stardist_model,
-        output_label_name=output_label_name,
-        advanced_stardist_model_params=dict(
-            prob_thresh=0.1,
-            nms_thresh=0.4,
-            scale=(1.0, 1.0, 1.0),
-        ),
-        overwrite=True,
-    )
-
-    with pytest.raises(OverwriteNotAllowedError):
-        stardist_segmentation(
-            zarr_url=zarr_url,
-            level=4,
-            channel=channel,
-            input_ROI_table=input_ROI_table,
-            model_type=stardist_model,
-            output_label_name=output_label_name,
-            advanced_stardist_model_params=dict(
-                prob_thresh=0.1,
-                nms_thresh=0.4,
-                scale=(1.0, 1.0, 1.0),
-            ),
-            overwrite=False,
-        )
-
-
 @pytest.fixture(scope="function")
 def test_data_dir_3d(tmp_path: Path, zenodo_zarr: Path) -> str:
     """
@@ -83,93 +35,6 @@ def test_data_dir_3d(tmp_path: Path, zenodo_zarr: Path) -> str:
     debug(zenodo_zarr, dest_dir)
     shutil.copytree(zenodo_zarr, dest_dir)
     return dest_dir
-
-
-def test_stardist_segmentation_workflow_3d(test_data_dir_3d):
-    # Task-specific arguments
-    input_ROI_table = "FOV_ROI_table"
-    stardist_model = StardistModels.DEMO_3D
-    output_label_name = "nuclei_stardist"
-    reference_acquisition = 2
-
-    zarr_url = f"{test_data_dir_3d}/B/03/0"
-
-    channel = StardistChannelInputModel(
-        wavelength_id="A01_C01",
-        normalization=StardistCustomNormalizer(),
-    )
-
-    advanced_stardist_model_params = dict(
-        prob_thresh=0.5,
-        nms_thresh=0.4,
-        scale=(1.0, 1.0, 1.0),
-        n_tiles=(4, 2, 2),
-        show_tile_progress=True,
-        verbose=True,
-    )
-
-    stardist_segmentation(
-        zarr_url=zarr_url,
-        level=4,
-        reference_acquisition=reference_acquisition,
-        channel=channel,
-        input_ROI_table=input_ROI_table,
-        model_type=stardist_model,
-        use_masks=False,
-        output_label_name=output_label_name,
-        advanced_stardist_model_params=advanced_stardist_model_params,
-        overwrite=True,
-    )
-
-    # test the same function with pretrained-model
-    pretrained_model = dict(
-        base_fld=str(Path(__file__).parent / "data/stardist_models/"),
-        pretrained_model_name="custom_3D",
-    )
-
-    stardist_segmentation(
-        zarr_url=zarr_url,
-        level=4,
-        use_masks=True,
-        channel=channel,
-        input_ROI_table=input_ROI_table,
-        pretrained_model=pretrained_model,
-        output_label_name=output_label_name,
-        advanced_stardist_model_params=advanced_stardist_model_params,
-        overwrite=True,
-    )
-
-    # test stardist segmentation with masked ROI table
-    input_roi_table_masked = "emb_ROI_table_2_linked"
-
-    stardist_segmentation(
-        zarr_url=zarr_url,
-        level=4,
-        use_masks=True,
-        channel=channel,
-        input_ROI_table=input_roi_table_masked,
-        model_type=stardist_model,
-        output_label_name=output_label_name,
-        advanced_stardist_model_params=advanced_stardist_model_params,
-        overwrite=True,
-    )
-
-    # Test with zarr_url that is not reference_zarr_url
-    zarr_url_not_ref = f"{test_data_dir_3d}/B/03/1"
-    stardist_segmentation(
-        zarr_url=zarr_url_not_ref,
-        reference_acquisition=reference_acquisition,
-        level=4,
-        use_masks=True,
-        channel=channel,
-        input_ROI_table=input_roi_table_masked,
-        model_type=stardist_model,
-        output_label_name=output_label_name,
-        advanced_stardist_model_params=advanced_stardist_model_params,
-        overwrite=True,
-    )
-    with pytest.raises((zarr.errors.GroupNotFoundError, KeyError)):
-        zarr.open_group(f"{zarr_url_not_ref}/labels/{output_label_name}", "r")
 
 
 def test_seeded_segmentation_workflow_3d(test_data_dir_3d):
