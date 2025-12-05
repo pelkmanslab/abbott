@@ -108,20 +108,6 @@ TASK_LIST = [
         docs_info="file:docs_info/convert_cellvoyager_multiplex_extend.md",
     ),
     ParallelTask(
-        name="Stardist Segmentation",
-        executable="fractal_tasks/stardist_segmentation.py",
-        meta={"cpus_per_task": 4, "mem": 16000, "needs_gpu": True},
-        category="Segmentation",
-        tags=[
-            "Deep Learning",
-            "Convolutional Neural Network",
-            "Instance Segmentation",
-            "2D",
-            "3D",
-        ],
-        docs_info="file:docs_info/stardist_segmentation.md",
-    ),
-    ParallelTask(
         name="Seeded Watershed Segmentation",
         executable="fractal_tasks/seeded_segmentation.py",
         meta={"cpus_per_task": 4, "mem": 16000},

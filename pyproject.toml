@@ -36,19 +36,18 @@ dependencies = [
     "fractal-task-tools == 0.0.12",
     "itk<5.4.4", 
     "itk-elastix", 
-    "numpy<2.0",
     "h5py", 
     "ngio",
     "scikit-image",
     "pyarrow ==20.0.0",
-    "warpfield @ git+https://github.com/rhornb/warpfield.git@dev" # pin to cuda11
+    "warpfield @ git+https://github.com/rhornb/warpfield.git@dev", # pin to cuda11
+    "dask<=2025.9.1" #79
 ]
 
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies)
 [project.optional-dependencies]
 dev = ["devtools", "hatch", "pytest", "requests", "jsonschema", "ruff", "pre-commit", "pooch", "pytest-cov"]
-stardist = ["csbdeep", "optree", "stardist", "tensorflow", "tensorflow-metal ; platform_system == 'Darwin'"]
 
 # https://docs.astral.sh/ruff
 [tool.ruff]
