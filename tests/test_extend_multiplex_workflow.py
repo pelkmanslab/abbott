@@ -84,10 +84,7 @@ def test_extend_multiplexing_yokogawa_to_existing_ome_zarr(
         ),
     }
 
-    zarr_urls = [image["zarr_url"] for image in parallelization_list]
-
     parallelization_list = cellvoyager_to_ome_zarr_init_extend_multiplex(
-        zarr_urls=zarr_urls,
         zarr_dir=zarr_dir,
         acquisitions=acquisition_extend,
         num_levels=num_levels,
@@ -102,6 +99,24 @@ def test_extend_multiplexing_yokogawa_to_existing_ome_zarr(
             init_args=image["init_args"],
         )
         zarr_urls_init_extend.append(image["zarr_url"])
+
+    # Test adding cycle that has already been added
+
+    parallelization_list = cellvoyager_to_ome_zarr_init_extend_multiplex(
+        zarr_dir=zarr_dir,
+        acquisitions=acquisition_extend,
+        num_levels=num_levels,
+        coarsening_xy=coarsening_xy,
+        image_extension="png",
+        metadata_table_files=None,
+        overwrite=True,
+    )["parallelization_list"]
+
+    for image in parallelization_list:
+        cellvoyager_to_ome_zarr_compute(
+            zarr_url=image["zarr_url"],
+            init_args=image["init_args"],
+        )
 
     #####
     # Assert if extended OME-Zarr file has the same amount of

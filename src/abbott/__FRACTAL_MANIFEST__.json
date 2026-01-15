@@ -581,7 +581,7 @@
         "3D"
       ],
       "docs_info": "### Purpose\n- Converts **multiplexed 2D and 3D images from CellVoyager CV7000/8000** systems into OME-Zarr format, storing each acquisition as a separate OME-Zarr image, **extending an existing** OME-Zarr plate.\n- Creates **OME-Zarr HCS plates**, combining all fields of view for each acquisition in a well into a single image.\n- Saves Fractal **region-of-interest (ROI) tables** for both individual fields of view and the entire well.\n- Handles overlapping fields of view by adjusting their positions to be non-overlapping, while preserving the original position data as additional columns in the ROI tables.\n\n### Limitations\n- This task currently does not support time-resolved data and ignores the time fields in CellVoyager metadata.\n",
-      "type": "compound",
+      "type": "converter_compound",
       "executable_non_parallel": "fractal_tasks/cellvoyager_to_ome_zarr_init_extend_multiplex.py",
       "executable_parallel": "fractal_tasks/cellvoyager_compute_omezarr.py",
       "meta_non_parallel": {
@@ -695,14 +695,6 @@
         },
         "additionalProperties": false,
         "properties": {
-          "zarr_urls": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Zarr Urls",
-            "type": "array",
-            "description": "List of paths or urls to the individual OME-Zarr image to be processed. (standard argument for Fractal tasks, managed by Fractal server)."
-          },
           "zarr_dir": {
             "title": "Zarr Dir",
             "type": "string",
@@ -766,7 +758,6 @@
           }
         },
         "required": [
-          "zarr_urls",
           "zarr_dir",
           "acquisitions"
         ],

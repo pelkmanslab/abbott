@@ -57,7 +57,6 @@ logger = logging.getLogger(__name__)
 def cellvoyager_to_ome_zarr_init_extend_multiplex(
     *,
     # Fractal parameters
-    zarr_urls: list[str],
     zarr_dir: str,
     # Core parameters
     acquisitions: dict[str, MultiplexingAcquisition],
@@ -79,9 +78,6 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
     Each element in input_paths should be treated as a different acquisition.
 
     Args:
-        zarr_urls: List of paths or urls to the individual OME-Zarr image to
-            be processed.
-            (standard argument for Fractal tasks, managed by Fractal server).
         zarr_dir: path to the directory of the existing OME-Zarr file where the
             new acquisitions will be added.
             (standard argument for Fractal tasks, managed by Fractal server).
@@ -119,36 +115,9 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
             plate, the images and some parameters required by downstream tasks
             (like `num_levels`).
     """
-    if not zarr_urls:
-        raise ValueError(
-            "Run 'Convert Cellvoyager Multiplexing to OME-Zarr' "
-            "task first before trying to extend it."
-        )
+    plate = _get_plate_name(zarr_dir)
+    logger.info(f"Extending plate: {plate}")
 
-    # Get the plate name of existing OME-Zarr file to write to (see issue #16)
-    zarr_url = zarr_urls[0]
-    plate = _get_plate_name(Path(zarr_url))
-
-    if metadata_table_files:
-        # Checks on the dict:
-        # 1. Acquisitions in acquisitions dict and metadata_table_files match
-        # 2. Files end with ".csv"
-        # 3. Files exist.
-        if set(acquisitions.keys()) != set(metadata_table_files.keys()):
-            raise ValueError(
-                "Mismatch in acquisition keys between "
-                f"{acquisitions.keys()=} and "
-                f"{metadata_table_files.keys()=}"
-            )
-        for f in metadata_table_files.values():
-            if not f.endswith(".csv"):
-                raise ValueError(f"{f} (in metadata_table_file) is not a csv file.")
-            if not os.path.isfile(f):
-                raise ValueError(f"{f} (in metadata_table_file) does not exist.")
-
-    # Preliminary checks on acquisitions
-    # Note that in metadata the keys of dictionary arguments should be
-    # strings (and not integers), so that they can be read from a JSON file
     for key, values in acquisitions.items():
         if not isinstance(key, str):
             raise ValueError(f"{acquisitions=} has non-string keys")
@@ -432,18 +401,43 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
 
             group_well = zarr.open_group(f"{full_zarrurl}/{row}/{column}/", mode="r+")
             logging.info(f"Loaded group_well from {full_zarrurl}/{row}/{column}")
-            current_images = group_well.attrs["well"]["images"] + [
-                {"path": f"{acquisition}", "acquisition": int(acquisition)}
-            ]
+
+            existing_images = group_well.attrs["well"]["images"]
+
+            # Remove existing image for this acquisition if overwrite is True
+            if overwrite:
+                existing_images = [
+                    img
+                    for img in existing_images
+                    if img["acquisition"] != int(acquisition)
+                ]
+            else:
+                # If not overwriting, fail early if acquisition already exists
+                if any(
+                    img["acquisition"] == int(acquisition) for img in existing_images
+                ):
+                    raise ValueError(
+                        f"Image for acquisition {acquisition} already exists in well "
+                        f"{row}/{column}. Set overwrite=True to replace it."
+                    )
+
+            # Append the (new or replacement) image
+            existing_images.append(
+                {"path": str(acquisition), "acquisition": int(acquisition)}
+            )
+
             well_attrs = dict(
-                images=current_images,
+                images=existing_images,
                 version=group_well.attrs["well"]["version"],
             )
-            # Validate well attrs:
+
+            # Validate and write back
             Well(**well_attrs)
             group_well.attrs["well"] = well_attrs
 
-            group_image = group_well.create_group(f"{acquisition}/")
+            group_image = group_well.create_group(
+                f"{acquisition}/", overwrite=overwrite
+            )
             logging.info(f"Created image group {row}/{column}/{acquisition}")
             image = f"{plate}.zarr/{row}/{column}/{acquisition}"
             zarrurls["image"].append(image)
@@ -531,12 +525,16 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
     return dict(parallelization_list=parallelization_list)
 
 
-def _get_plate_name(zarr_url: Path) -> str:
-    """Extract plate name from an OME-Zarr image url."""
-    while zarr_url.suffix != ".zarr" and zarr_url != zarr_url.parent:
-        zarr_url = zarr_url.parent
-    plate_name = zarr_url.stem
-    return plate_name
+def _get_plate_name(zarr_dir: str) -> str:
+    """Extract plate name from zarr dir"""
+    subdirs = os.listdir(zarr_dir)
+    if len(subdirs) > 0:
+        logger.warning(
+            "zarr_dir contains more than one folder. "
+            "Plate name extraction might be incorrect."
+        )
+    subdir = subdirs[0]
+    return Path(subdir).stem
 
 
 if __name__ == "__main__":
