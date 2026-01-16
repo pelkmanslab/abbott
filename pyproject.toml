@@ -32,16 +32,20 @@ authors = [
 # Required Python version and dependencies
 requires-python = ">=3.11"
 dependencies = [
-    "fractal-tasks-core == 1.5.3", 
+    "fractal-tasks-core == 1.5.3",
+    "ngio==0.2.13",
     "fractal-task-tools == 0.0.12",
+    "numpy<2",
     "itk<5.4.4", 
     "itk-elastix", 
-    "h5py", 
-    "ngio",
-    "scikit-image",
+    "h5py==3.14.0",
+    "hdf5plugin<4.2",
+    "scikit-image <= 0.25.2",
     "pyarrow ==20.0.0",
     "warpfield @ git+https://github.com/rhornb/warpfield.git@dev", # pin to cuda11
-    "dask<=2025.9.1" #79
+    "dask<=2025.9.1", #79
+    "scipy<1.17",
+    "pandas<2.0.0"
 ]
 
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see

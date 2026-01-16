@@ -96,7 +96,7 @@ TASK_LIST = [
         tags=["Multiplexing", "3D"],
         docs_info="file:docs_info/apply_channel_registration.md",
     ),
-    CompoundTask(
+    ConverterCompoundTask(
         name="Convert Cellvoyager Multiplexing to existing OME-Zarr",
         executable_init="fractal_tasks/cellvoyager_to_ome_zarr_init_extend_multiplex.py",
         executable="fractal_tasks/cellvoyager_compute_omezarr.py",

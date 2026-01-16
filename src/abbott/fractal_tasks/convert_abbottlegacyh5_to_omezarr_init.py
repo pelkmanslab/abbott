@@ -120,6 +120,8 @@ def convert_abbottlegacyh5_to_omezarr_init(
         parse_yokogawa_metadata(
             mrf_path,
             mlf_path,
+            include_patterns=include_glob_patterns,
+            exclude_patterns=exclude_glob_patterns,
         )
     except Exception as e:
         raise ValueError(
@@ -237,6 +239,8 @@ def convert_abbottlegacyh5_to_omezarr_init(
                         plate_path=zarr_plate,
                         mrf_path=mrf_path,
                         mlf_path=mlf_path,
+                        include_glob_patterns=include_glob_patterns,
+                        exclude_glob_patterns=exclude_glob_patterns,
                         overwrite=overwrite,
                     ).model_dump(),
                 }

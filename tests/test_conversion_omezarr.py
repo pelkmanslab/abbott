@@ -52,7 +52,8 @@ def sample_h5_file_3d(tmp_path: Path):
     tmp_path = Path(tmp_path) / "data"
     tmp_path.mkdir(parents=True, exist_ok=True)
     h5_file_path_1 = tmp_path / "B02_px-1849_py-0958.h5"
-    h5_file_path_2 = tmp_path / "B02_px-2514_py+0114.h5"
+    h5_file_path_2 = tmp_path / "B03_px+0101_py+0728.h5"
+    # h5_file_path_2 = tmp_path / "B02_px-2514_py+0114.h5"
     random_image = np.random.randint(0, 3, (15, 2000, 2000))
     random_label_c0_file_1 = np.zeros((15, 2000, 2000), dtype=np.int32)
     random_label_c0_file_1[:, 100:900, 100:900] = 1
@@ -188,7 +189,7 @@ def test_full_workflow_3D(sample_h5_file_3d: list[Path], tmp_path: Path):
         zarr_dir=zarr_dir,
         input_dir=sample_h5_file_3d[0].parent.as_posix(),
         acquisitions=acquisitions,
-        include_glob_patterns=None,
+        include_glob_patterns=["*B03*"],
         exclude_glob_patterns=None,
         h5_extension=AllowedH5Extensions.H5,
         mrf_path=str(Path(__file__).parent / "data/MeasurementDetail.mrf"),

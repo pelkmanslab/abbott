@@ -72,6 +72,10 @@ class InitArgsCellVoyagerH5toOMEZarr(BaseModel):
         plate_path: Name of the plate, used to create the OME-Zarr path.
         mrf_path: Path to the MRF file for metadata extraction.
         mlf_path: Path to the MLF file for metadata extraction.
+        include_glob_patterns: List of glob patterns to include files for
+            metadata parsing.
+        exclude_glob_patterns: List of glob patterns to exclude files for
+            metadata parsing.
         overwrite: Whether to overwrite existing OME-Zarr data.
     """
 
@@ -81,6 +85,8 @@ class InitArgsCellVoyagerH5toOMEZarr(BaseModel):
     plate_path: str
     mrf_path: str
     mlf_path: str
+    include_glob_patterns: list[str] | None = None
+    exclude_glob_patterns: list[str] | None = None
     overwrite: bool
 
 

@@ -367,6 +367,8 @@ def convert_abbottlegacyh5_to_omezarr_compute(
     site_metadata, _ = parse_yokogawa_metadata(
         mrf_path=init_args.mrf_path,
         mlf_path=init_args.mlf_path,
+        include_patterns=init_args.include_glob_patterns,
+        exclude_patterns=init_args.exclude_glob_patterns,
     )
 
     acquisition_id = Path(zarr_url).stem
