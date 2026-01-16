@@ -1450,6 +1450,20 @@
                 "title": "Mlf Path",
                 "type": "string"
               },
+              "include_glob_patterns": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Include Glob Patterns",
+                "type": "array"
+              },
+              "exclude_glob_patterns": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Exclude Glob Patterns",
+                "type": "array"
+              },
               "overwrite": {
                 "title": "Overwrite",
                 "type": "boolean"
