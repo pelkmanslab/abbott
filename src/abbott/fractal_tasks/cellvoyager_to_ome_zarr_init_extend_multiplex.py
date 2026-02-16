@@ -61,6 +61,7 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
     # Core parameters
     acquisitions: dict[str, MultiplexingAcquisition],
     # Advanced parameters
+    plate_name: Optional[str] = None,
     include_glob_patterns: Optional[list[str]] = None,
     exclude_glob_patterns: Optional[list[str]] = None,
     num_levels: int = 5,
@@ -84,6 +85,9 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
         acquisitions: dictionary of acquisitions. Each key is the acquisition
             identifier (normally 0, 1, 2, 3 etc.). Each item defines the
             acquisition by providing the image_dir and the allowed_channels.
+        plate_name: If specified, tries to extend an existing plate with this name
+            e.g. `AssayPlate_Greiner_CELLSTAR655090`.
+            If `None`, tries to extract the plate name from the zarr_dir.
         include_glob_patterns: If specified, only parse images with filenames
             that match with all these patterns. Patterns must be defined as in
             https://docs.python.org/3/library/fnmatch.html, Example:
@@ -115,7 +119,11 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
             plate, the images and some parameters required by downstream tasks
             (like `num_levels`).
     """
-    plate = _get_plate_name(zarr_dir)
+    if plate_name is not None:
+        logger.info(f"Using provided plate name: {plate_name}")
+        plate = plate_name
+    else:
+        plate = _get_plate_name(zarr_dir)
     logger.info(f"Extending plate: {plate}")
 
     for key, values in acquisitions.items():
@@ -125,7 +133,7 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
         try:
             int(key)
         except ValueError:
-            return ValueError("Acquisition dictionary keys need " "to be integers")
+            return ValueError("Acquisition dictionary keys need to be integers")
 
     # Identify all plates and all channels, per input folders
     dict_acquisitions: dict = {}
@@ -234,7 +242,7 @@ def cellvoyager_to_ome_zarr_init_extend_multiplex(
     plate_attrs = group_plate.attrs.get("plate")
     if plate_attrs is None:
         raise ValueError(
-            f"Image at {full_zarrurl} does not contain " "zarr plate metadata"
+            f"Image at {full_zarrurl} does not contain zarr plate metadata"
         )
 
     # validate

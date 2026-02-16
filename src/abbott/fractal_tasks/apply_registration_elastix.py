@@ -17,7 +17,6 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 from fractal_tasks_core.tasks._zarr_utils import (
     _get_matching_ref_acquisition_path_heuristic,
     _update_well_metadata,
@@ -26,10 +25,10 @@ from fractal_tasks_core.utils import (
     _split_well_path_image_path,
 )
 from ngio import open_ome_zarr_container, open_ome_zarr_well
-from ngio.images.ome_zarr_container import OmeZarrContainer
+from ngio.images._ome_zarr_container import OmeZarrContainer
 from pydantic import validate_call
 
-from abbott.fractal_tasks.conversions import to_itk, to_numpy
+from abbott.registration.conversions import to_itk, to_numpy
 from abbott.registration.fractal_helper_tasks import (
     get_acquisition_paths,
     get_pad_width,
@@ -159,9 +158,12 @@ def apply_registration_elastix(
     ome_zarr_mov = open_ome_zarr_container(zarr_url)
 
     # Masked loading checks
-    ref_roi_table = ome_zarr_ref.get_table(roi_table)
     if use_masks:
-        if ref_roi_table.type() != "masking_roi_table":
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table)
+    if use_masks:
+        if ref_roi_table.table_type() != "masking_roi_table":
             logger.warning(
                 f"ROI table {roi_table} in reference OME-Zarr is not "
                 "a masking ROI table. Falling back to use_masks=False."
@@ -219,7 +221,10 @@ def apply_registration_elastix(
     table_names = ome_zarr_ref.list_tables()
     for table_name in table_names:
         table = ome_zarr_ref.get_table(table_name)
-        if table.type() == "roi_table" or table.type() == "masking_roi_table":
+        if (
+            table.table_type() == "roi_table"
+            or table.table_type() == "masking_roi_table"
+        ):
             # Copy ROI tables from the reference acquisition
             new_ome_zarr.add_table(table_name, table, overwrite=overwrite_input)
         else:
@@ -307,7 +312,10 @@ def write_registered_zarr(
     """
     # Get reference OME-Zarr container and images
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
-    ref_roi_table = ome_zarr_ref.get_table(roi_table_name)
+    if use_masks:
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table_name)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table_name)
 
     ome_zarr_new = ome_zarr_mov.derive_image(
         store=new_zarr_url,
@@ -347,15 +355,19 @@ def write_registered_zarr(
         mov_images = ome_zarr_mov.get_image()
         new_images = ome_zarr_new.get_image()
 
-    roi_table_mov = ome_zarr_mov.get_table(roi_table_name)
-    roi_table_ref = ome_zarr_ref.get_table(roi_table_name)
+    if use_masks:
+        roi_table_mov = ome_zarr_mov.get_masking_roi_table(roi_table_name)
+        roi_table_ref = ome_zarr_ref.get_masking_roi_table(roi_table_name)
+    else:
+        roi_table_mov = ome_zarr_mov.get_table(roi_table_name)
+        roi_table_ref = ome_zarr_ref.get_table(roi_table_name)
 
     # TODO: Add sanity checks on the 2 ROI tables:
     # 1. The number of ROIs need to match
     # 2. The size of the ROIs need to match
     # (otherwise, we can't assign them to the reference regions)
     for ref_roi in roi_table_ref.rois():
-        mov_roi = roi_table_mov.get(ref_roi.name)
+        mov_roi = [roi for roi in roi_table_mov.rois() if roi.name == ref_roi.name][0]
         # Load registration parameters
         ROI_id = mov_roi.name
         fn_pattern = f"{roi_table_name}_roi_{ROI_id}_t*.txt"
@@ -364,10 +376,10 @@ def write_registered_zarr(
         parameter_object = load_parameter_files([str(x) for x in parameter_files])
 
         pxl_sizes_zyx = mov_images.pixel_size.zyx
-        axes_list = mov_images.meta.axes_mapper.on_disk_axes_names
+        axes_list = mov_images.axes
 
-        if axes_list == ["c", "z", "y", "x"]:
-            num_channels = len(mov_images.meta.channel_labels)
+        if axes_list == ("c", "z", "y", "x"):
+            num_channels = mov_images.num_channels
             # Loop over channels
             for ind_ch in range(num_channels):
                 if use_masks:
@@ -413,17 +425,17 @@ def write_registered_zarr(
                     new_images.set_roi_masked(
                         label=int(ROI_id),
                         c=ind_ch,
-                        patch=np.expand_dims(data_mov_reg, axis=0),
+                        patch=data_mov_reg,
                     )
                 else:
                     new_images.set_roi(
-                        roi=mov_roi,
+                        roi=ref_roi,
                         c=ind_ch,
-                        patch=np.expand_dims(data_mov_reg, axis=0),
+                        patch=data_mov_reg,
                     )
             new_images.consolidate()
 
-        elif axes_list == ["z", "y", "x"]:
+        elif axes_list == ("z", "y", "x"):
             if use_masks:
                 data_ref = ref_images.get_roi_masked(
                     label=int(ROI_id),
@@ -433,12 +445,8 @@ def write_registered_zarr(
                 )
 
             else:
-                data_ref = ref_images.get_roi(
-                    roi=ref_roi,
-                )
-                data_mov = mov_images.get_roi(
-                    roi=mov_roi,
-                )
+                data_ref = ref_images.get_roi(roi=ref_roi)
+                data_mov = mov_images.get_roi(roi=mov_roi)
 
             # Pad to the same shape
             max_shape = tuple(
@@ -468,13 +476,13 @@ def write_registered_zarr(
                 )
             new_images.consolidate()
 
-        elif axes_list == ["c", "y", "x"]:
+        elif axes_list == ("c", "y", "x"):
             # TODO: Implement cyx case (based on looping over xy case)
             raise NotImplementedError(
                 "`write_registered_zarr` has not been implemented for "
                 f"a zarr with {axes_list=}"
             )
-        elif axes_list == ["y", "x"]:
+        elif axes_list == ("y", "x"):
             # TODO: Implement yx case
             raise NotImplementedError(
                 "`write_registered_zarr` has not been implemented for "

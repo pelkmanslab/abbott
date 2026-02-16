@@ -32,9 +32,7 @@ authors = [
 # Required Python version and dependencies
 requires-python = ">=3.11"
 dependencies = [
-    "fractal-tasks-core == 1.5.3",
-    "ngio==0.2.13",
-    "fractal-task-tools == 0.0.12",
+    "fractal-tasks-core == 1.6.0",
     "numpy<2",
     "itk<5.4.4", 
     "itk-elastix", 
@@ -45,7 +43,7 @@ dependencies = [
     "warpfield @ git+https://github.com/rhornb/warpfield.git@dev", # pin to cuda11
     "dask<=2025.9.1", #79
     "scipy<1.17",
-    "pandas<2.0.0"
+    "pandas<2.0.0",
 ]
 
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
@@ -83,6 +81,7 @@ ignore = [
     "C408", # Dictionary comprehension
     "B008", # Do not perform function calls in argument defaults
     "D102", # Missing docstring in public method
+    "RUF015"
 ]
 
 [tool.ruff.lint.per-file-ignores]

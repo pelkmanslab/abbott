@@ -114,4 +114,6 @@ ENV/
 *.zarr
 # Test data loaded via pooch
 tests/data/10_5281_zenodo_8287221/
-tests/data/fake_multiplex/
+tests/data/fake_multiplex/# pixi environments
+.pixi/*
+!.pixi/config.toml

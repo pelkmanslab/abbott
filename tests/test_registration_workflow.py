@@ -24,6 +24,7 @@ from abbott.fractal_tasks.compute_registration_elastix import (
 #     compute_registration_warpfield,
 # )
 from abbott.fractal_tasks.init_registration_hcs import init_registration_hcs
+from abbott.registration.utils import IteratorConfiguration
 
 
 @pytest.fixture(scope="function")
@@ -153,7 +154,7 @@ def test_registration_workflow_masked(test_data_dir):
         compute_registration_elastix(
             zarr_url=param["zarr_url"],
             init_args=param["init_args"],
-            ref_wavelength_id = ref_wavelength_id,
+            ref_wavelength_id=ref_wavelength_id,
             roi_table=roi_table,
             parameter_files=parameter_files,
             use_masks=True,
@@ -264,22 +265,24 @@ def test_channel_registration_workflow(test_data_dir):
     reference_wavelength = "A01_C01"
     zarr_url = f"{test_data_dir}/B/03/0"
 
+    iterator_configuration = IteratorConfiguration(roi_table=roi_table)
+
     compute_channel_registration_elastix(
         zarr_url=zarr_url,
         reference_wavelength=reference_wavelength,
-        roi_table=roi_table,
+        parameter_files=parameter_files,
+        iterator_configuration=iterator_configuration,
+        level_path=level,
         lower_rescale_quantile=0.0,
         upper_rescale_quantile=0.99,
-        parameter_files=parameter_files,
-        level=level,
     )
 
     # Test zarr_url that needs to be registered
     apply_channel_registration_elastix(
         zarr_url=zarr_url,
-        roi_table=roi_table,
         reference_wavelength=reference_wavelength,
-        level=level,
+        iterator_configuration=iterator_configuration,
+        level_path=0,
         overwrite_input=False,
     )
     new_zarr_url = f"{zarr_url}_channels_registered"
@@ -288,17 +291,8 @@ def test_channel_registration_workflow(test_data_dir):
     # Pre-existing output can be overwritten
     apply_channel_registration_elastix(
         zarr_url=zarr_url,
-        roi_table=roi_table,
         reference_wavelength=reference_wavelength,
-        level=level,
-        overwrite_input=False,
-        overwrite_output=True,
-    )
-
-    apply_channel_registration_elastix(
-        zarr_url=zarr_url,
-        roi_table=roi_table,
-        reference_wavelength=reference_wavelength,
-        level=level,
+        iterator_configuration=iterator_configuration,
+        level_path=0,
         overwrite_input=True,
     )

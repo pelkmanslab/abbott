@@ -12,6 +12,7 @@ from fractal_tasks_core.labels import prepare_label_group
 from fractal_tasks_core.ngff import load_NgffImageMeta
 from fractal_tasks_core.pyramids import build_pyramid
 from fractal_tasks_core.utils import rescale_datasets
+from ngio.utils._errors import NgioValueError
 
 from abbott.fractal_tasks.upsample_label_image import upsample_label_image
 
@@ -37,10 +38,8 @@ def test_upsample_label_image_same_resolutions(test_data_dir_3d):
     upsample_label_image(
         zarr_url=zarr_urls[0],
         label_name="emb_linked",
-        output_label_name="emb_linked_upsampled",
-        input_ROI_table="emb_ROI_table_2_linked",
+        # output_label_name="emb_linked_upsampled",
         output_ROI_table="emb_ROI_table_2_linked",
-        level=0,
         overwrite=True,
     )
 
@@ -133,9 +132,7 @@ def test_upsample_label_image_lower_resolution(test_data_dir_3d):
         zarr_url=zarr_url,
         label_name=label_name,
         output_label_name=output_label_name,
-        input_ROI_table="FOV_ROI_table",
         output_ROI_table="emb_ROI_table_upsampled",
-        level=0,
         overwrite=True,
     )
 
@@ -146,13 +143,11 @@ def test_upsample_label_image_lower_resolution(test_data_dir_3d):
     assert label_image.shape == label_image_new.shape
 
     # Test FileNotFoundError if label_name does not exist
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(NgioValueError):
         upsample_label_image(
             zarr_url=zarr_urls[1],
             label_name=label_name,
             output_label_name=output_label_name,
-            input_ROI_table="FOV_ROI_table",
             output_ROI_table="emb_ROI_table_upsampled",
-            level=0,
             overwrite=True,
         )

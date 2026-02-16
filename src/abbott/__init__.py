@@ -1,6 +1,5 @@
-"""
-3D Multiplexed Image Analysis Workflows
-"""
+"""3D Multiplexed Image Analysis Workflows"""
+
 from importlib.metadata import PackageNotFoundError, version
 
 try:

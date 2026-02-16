@@ -99,26 +99,26 @@ def compute_registration_warpfield(
 
     # Load channel to register by
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
-    channel_index_ref = ome_zarr_ref.image_meta._get_channel_idx_by_wavelength_id(
-        wavelength_id
-    )
+    channel_index_ref = ome_zarr_ref.get_channel_idx(wavelength_id=wavelength_id)
 
     ome_zarr_mov = open_ome_zarr_container(zarr_url)
-    channel_index_align = ome_zarr_mov.image_meta._get_channel_idx_by_wavelength_id(
-        wavelength_id
-    )
+    channel_index_align = ome_zarr_mov.get_channel_idx(wavelength_id=wavelength_id)
 
     # Get images for the given level and at highest resolution
     ref_images = ome_zarr_ref.get_image(path=str(level))
     mov_images = ome_zarr_mov.get_image(path=str(level))
 
     # Read ROIs
-    ref_roi_table = ome_zarr_ref.get_table(roi_table)
-    mov_roi_table = ome_zarr_mov.get_table(roi_table)
+    if use_masks:
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table)
+        mov_roi_table = ome_zarr_mov.get_masking_roi_table(roi_table)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table)
+        mov_roi_table = ome_zarr_mov.get_table(roi_table)
 
     # Masked loading checks
     if use_masks:
-        if ref_roi_table.type() != "masking_roi_table":
+        if ref_roi_table.table_type() != "masking_roi_table":
             logger.warning(
                 f"ROI table {roi_table} in reference OME-Zarr is not "
                 "a masking ROI table. Falling back to use_masks=False."
@@ -181,16 +181,13 @@ def compute_registration_warpfield(
         recipe = warpfield.Recipe.from_yaml("default.yml")
 
     logger.info(
-        f"Start of warpfield registration for {zarr_url=} "
-        f"with registration {recipe=}"
+        f"Start of warpfield registration for {zarr_url=} with registration {recipe=}"
     )
 
     num_ROIs = len(ref_roi_table.rois())
     for i_ROI, ref_roi in enumerate(ref_roi_table.rois()):
         ROI_id = ref_roi.name
-        logger.info(
-            f"Now processing ROI {i_ROI+1}/{num_ROIs} " f"for {wavelength_id=}."
-        )
+        logger.info(f"Now processing ROI {i_ROI + 1}/{num_ROIs} for {wavelength_id=}.")
 
         if use_masks:
             img_ref = ref_images.get_roi_masked(
@@ -207,7 +204,9 @@ def compute_registration_warpfield(
                 roi=ref_roi,
                 c=channel_index_ref,
             ).squeeze()
-            mov_roi = mov_roi_table.get(ROI_id)
+            mov_roi = [roi for roi in mov_roi_table.rois() if roi.name == ref_roi.name][
+                0
+            ]
             img_mov = mov_images.get_roi(
                 roi=mov_roi,
                 c=channel_index_align,
@@ -218,7 +217,6 @@ def compute_registration_warpfield(
         max_shape = tuple(
             max(r, m) for r, m in zip(img_ref.shape, img_mov.shape, strict=False)
         )
-
         img_ref = pad_to_max_shape(img_ref, max_shape)
         img_mov = pad_to_max_shape(img_mov, max_shape)
 
@@ -226,7 +224,7 @@ def compute_registration_warpfield(
         if histogram_normalisation:
             img_mov = histogram_matching(img_mov, img_ref)
             logger.info(
-                f"Applied histogram normalisation to moving image " f"for ROI {ROI_id}."
+                f"Applied histogram normalisation to moving image for ROI {ROI_id}."
             )
 
         ##############

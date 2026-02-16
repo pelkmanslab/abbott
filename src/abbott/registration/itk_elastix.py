@@ -152,26 +152,6 @@ def copy_parameter_map(parameter_map: itk.ParameterObject) -> itk.ParameterObjec
     return parameter_map_out
 
 
-def adapt_itk_params(parameter_object, itk_img):
-    """Updates spacing & size settings in the parameter object
-
-    This is needed to address https://github.com/pelkmanslab/abbott/issues/10
-    This ensures that applying the transformation will output an image in the
-    input resolution (instead of the transform resolution)
-
-    Args:
-        parameter_object: ITK parameter object
-        itk_img: ITK image that will be registered
-
-    """
-    for i in range(parameter_object.GetNumberOfParameterMaps()):
-        itk_spacing = tuple([str(x) for x in itk_img.GetSpacing()])
-        itk_size = tuple([str(x) for x in itk_img.GetRequestedRegion().GetSize()])
-        parameter_object.SetParameter(i, "Spacing", itk_spacing)
-        parameter_object.SetParameter(i, "Size", itk_size)
-    return parameter_object
-
-
 def get_identity_parameter_file_path(dimension: int) -> str:
     """Return the path to the identity parameter file for the given dimension."""
     if dimension not in (2, 3):
@@ -214,4 +194,24 @@ def create_identity_transform_from_file(
     parameter_object.SetParameter(0, "Spacing", spacing)
     parameter_object.SetParameter(0, "Size", size)
 
+    return parameter_object
+
+
+def adapt_itk_params(parameter_object, itk_img):
+    """Updates spacing & size settings in the parameter object
+
+    This is needed to address https://github.com/pelkmanslab/abbott/issues/10
+    This ensures that applying the transformation will output an image in the
+    input resolution (instead of the transform resolution)
+
+    Args:
+        parameter_object: ITK parameter object
+        itk_img: ITK image that will be registered
+
+    """
+    for i in range(parameter_object.GetNumberOfParameterMaps()):
+        itk_spacing = tuple([str(x) for x in itk_img.GetSpacing()])
+        itk_size = tuple([str(x) for x in itk_img.GetRequestedRegion().GetSize()])
+        parameter_object.SetParameter(i, "Spacing", itk_spacing)
+        parameter_object.SetParameter(i, "Size", itk_size)
     return parameter_object
