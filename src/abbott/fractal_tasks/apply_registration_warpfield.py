@@ -16,7 +16,6 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 from fractal_tasks_core.tasks._zarr_utils import (
     _get_matching_ref_acquisition_path_heuristic,
     _update_well_metadata,
@@ -25,7 +24,7 @@ from fractal_tasks_core.utils import (
     _split_well_path_image_path,
 )
 from ngio import open_ome_zarr_container, open_ome_zarr_well
-from ngio.images.ome_zarr_container import OmeZarrContainer
+from ngio.images._ome_zarr_container import OmeZarrContainer
 from pydantic import validate_call
 
 from abbott.registration.fractal_helper_tasks import (
@@ -191,9 +190,12 @@ def apply_registration_warpfield(
     ome_zarr_mov = open_ome_zarr_container(zarr_url)
 
     # Masked loading checks
-    ref_roi_table = ome_zarr_ref.get_table(roi_table)
     if use_masks:
-        if ref_roi_table.type() != "masking_roi_table":
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table)
+    if use_masks:
+        if ref_roi_table.table_type() != "masking_roi_table":
             logger.warning(
                 f"ROI table {roi_table} in reference OME-Zarr is not "
                 f"a masking ROI table. Falling back to use_masks=False."
@@ -253,7 +255,10 @@ def apply_registration_warpfield(
     table_names = ome_zarr_ref.list_tables()
     for table_name in table_names:
         table = ome_zarr_ref.get_table(table_name)
-        if table.type() == "roi_table" or table.type() == "masking_roi_table":
+        if (
+            table.table_type() == "roi_table"
+            or table.table_type() == "masking_roi_table"
+        ):
             # Copy ROI tables from the reference acquisition
             ome_zarr_new.add_table(table_name, table, overwrite=overwrite_input)
         else:
@@ -358,7 +363,10 @@ def write_registered_zarr(
 
     # Get reference OME-Zarr container and images
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
-    ref_roi_table = ome_zarr_ref.get_table(roi_table_name)
+    if use_masks:
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table_name)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table_name)
 
     # Derive new ome-zarr container from moving image and copy
     # table & label (if use_masks) from reference
@@ -407,8 +415,12 @@ def write_registered_zarr(
         mov_images = ome_zarr_mov.get_image(pixel_size=pixel_size)
         new_images = ome_zarr_new.get_image(pixel_size=pixel_size)
 
-    roi_table_mov = ome_zarr_mov.get_table(roi_table_name)
-    roi_table_ref = ome_zarr_ref.get_table(roi_table_name)
+    if use_masks:
+        roi_table_mov = ome_zarr_mov.get_masking_roi_table(roi_table_name)
+        roi_table_ref = ome_zarr_ref.get_masking_roi_table(roi_table_name)
+    else:
+        roi_table_mov = ome_zarr_mov.get_table(roi_table_name)
+        roi_table_ref = ome_zarr_ref.get_table(roi_table_name)
 
     # TODO: Add sanity checks on the 2 ROI tables:
     # 1. The number of ROIs need to match
@@ -416,9 +428,9 @@ def write_registered_zarr(
     # (otherwise, we can't assign them to the reference regions)
     num_ROIs = len(ref_roi_table.rois())
     for i, ref_roi in enumerate(roi_table_ref.rois()):
-        logger.info(f"Now applying registration to ROI {i+1}/{num_ROIs} ")
+        logger.info(f"Now applying registration to ROI {i + 1}/{num_ROIs} ")
         ROI_id = ref_roi.name
-        mov_roi = roi_table_mov.get(ROI_id)
+        mov_roi = [roi for roi in roi_table_mov.rois() if roi.name == ref_roi.name][0]
         # Load registration parameters
         fn_pattern = f"{roi_table_name}_roi_{ROI_id}_lvl_{level}.h5"
         parameter_path = Path(zarr_url) / "registration"
@@ -432,9 +444,9 @@ def write_registered_zarr(
 
         warp_map = warpfield.register.WarpMap.from_h5(parameter_file[0])
 
-        axes_list = mov_images.meta.axes_mapper.on_disk_axes_names
-        if axes_list == ["c", "z", "y", "x"]:
-            num_channels = len(mov_images.meta.channel_labels)
+        axes_list = mov_images.axes
+        if axes_list == ("c", "z", "y", "x"):
+            num_channels = mov_images.num_channels
             # Loop over channels
             for ind_ch in range(num_channels):
                 if use_masks:
@@ -455,12 +467,10 @@ def write_registered_zarr(
                     data_ref = ref_images.get_roi(
                         roi=ref_roi,
                         c=0,
-                        mode="dask",
                     ).squeeze()
                     data_mov = mov_images.get_roi(
                         roi=mov_roi,
                         c=ind_ch,
-                        mode="dask",
                     ).squeeze()
 
                 # Pad to the same shape
@@ -478,9 +488,9 @@ def write_registered_zarr(
                         f"got shape {data_mov.shape}"
                     )
 
-                data_mov = data_mov.compute()
                 data_mov_reg = warp_map.apply(data_mov)
                 data_mov_reg = data_mov_reg.astype(dtype)  # warpfield returns float32
+                data_mov_reg = cp.asnumpy(data_mov_reg)
 
                 # Bring back to original shape
                 data_mov_reg = unpad_array(data_mov_reg, pad_width)
@@ -489,18 +499,18 @@ def write_registered_zarr(
                     new_images.set_roi_masked(
                         label=int(ROI_id),
                         c=ind_ch,
-                        patch=np.expand_dims(data_mov_reg, axis=0),
+                        patch=data_mov_reg,
                     )
 
                 else:
                     new_images.set_roi(
                         roi=ref_roi,
                         c=ind_ch,
-                        patch=np.expand_dims(data_mov_reg, axis=0),
+                        patch=data_mov_reg,
                     )
             new_images.consolidate()
 
-        elif axes_list == ["z", "y", "x"]:
+        elif axes_list == ("z", "y", "x"):
             if use_masks:
                 data_ref = ref_images.get_roi_masked(
                     label=int(ROI_id),
@@ -524,9 +534,10 @@ def write_registered_zarr(
             pad_width = get_pad_width(data_ref.shape, max_shape)
             data_mov = pad_to_max_shape(data_mov, max_shape)
 
-            data_mov = data_mov.compute()
             data_mov_reg = warp_map.apply(data_mov)
             data_mov_reg = data_mov_reg.astype(dtype)  # warpfield returns float32
+            data_mov_reg = cp.asnumpy(data_mov_reg)
+
             # Bring back to original shape
             data_mov_reg = unpad_array(data_mov_reg, pad_width)
 
@@ -543,13 +554,13 @@ def write_registered_zarr(
                 )
             new_images.consolidate()
 
-        elif axes_list == ["c", "y", "x"]:
+        elif axes_list == ("c", "y", "x"):
             # TODO: Implement cyx case (based on looping over xy case)
             raise NotImplementedError(
                 "`write_registered_zarr` has not been implemented for "
                 f"a zarr with {axes_list=}"
             )
-        elif axes_list == ["y", "x"]:
+        elif axes_list == ("y", "x"):
             # TODO: Implement yx case
             raise NotImplementedError(
                 "`write_registered_zarr` has not been implemented for "

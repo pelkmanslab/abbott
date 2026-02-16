@@ -17,12 +17,14 @@
 | Apply Registration (warpfield) | Apply warpfield registration.|✓|
 | Compute Channel Registration (elastix) | Compute similarity registration of all channels in an acquisition to a reference channel.|✓|
 | Apply Channel Registration (elastix) | Apply similarity registration to multi-channel acquisition.|✓|
-| Stardist Segmentation | Moved to [abbott-stardist-task](https://github.com/pelkmanslab/abbott-stardist-task) |✓|
-| Seeded Watershed Segmentation | Performs segmentation (e.g., of cells) using a label image as seeds and an intensity image (e.g., membrane stain) for boundary detection. |✓|
+| Stardist Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks) |✓|
+| Seeded Watershed Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks) |✓|
 | Upsample Label Image | Upsamples label images to the highest image resolution. Useful if segmentation was peformed on e.g. level 1 to avoid resolution mismatch in downstream tasks. |✓|
 
+For Feature Extraction, see [abbott-features](https://github.com/pelkmanslab/abbott-features)
+
 > [!IMPORTANT]
-> Warpfield Registration Tasks currently only run with CUDA > 12.x. See task documentation for instructions on how to run the tasks on the Pelkmans cluster.
+> Warpfield Registration Tasks currently only run with CUDA > 11.x. 
 
 ## Installation
 

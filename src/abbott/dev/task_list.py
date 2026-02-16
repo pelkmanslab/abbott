@@ -8,30 +8,9 @@ from fractal_task_tools.task_models import (
 
 AUTHORS = "Ruth Hornbachner"
 DOCS_LINK = "https://github.com/pelkmanslab/abbott"
-# INPUT_MODELS = [
-#     ["abbott", "fractal_tasks","converter/io_models.py",
-#      "AllowedH5Extensions"],
-#     ["abbott", "fractal_tasks","converter/io_models.py",
-#      "CustomWavelengthInputModel"],
-#     ["abbott", "fractal_tasks","converter/io_models.py",
-#      "InitArgsCellVoyagerH5toOMEZarr"],
-#     ["abbott", "fractal_tasks","converter/io_models.py",
-#      "ConverterMultiplexingAcquisition"],
-#     ["abbott", "fractal_tasks","converter/io_models.py",
-#      "ConverterOMEZarrBuilderParams"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "StardistChannelInputModel"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "StardistModelParams"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "StardistModels"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "StardistpretrainedModel"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "SeededSegmentationChannelInputModel"],
-#     ["abbott", "fractal_tasks","segmentation/io_models.py",
-#      "SeededSegmentationParams"],
-# ]
+INPUT_MODELS = [
+    ["abbott", "registration/utils.py", "IteratorConfiguration"],
+]
 
 TASK_LIST = [
     CompoundTask(
@@ -106,18 +85,6 @@ TASK_LIST = [
         modality="HCS",
         tags=["Yokogawa", "Cellvoyager", "2D", "3D"],
         docs_info="file:docs_info/convert_cellvoyager_multiplex_extend.md",
-    ),
-    ParallelTask(
-        name="Seeded Watershed Segmentation",
-        executable="fractal_tasks/seeded_segmentation.py",
-        meta={"cpus_per_task": 4, "mem": 16000},
-        category="Segmentation",
-        tags=[
-            "scikit-image",
-            "itk,",
-            "3D",
-        ],
-        docs_info="file:docs_info/seeded_segmentation.md",
     ),
     ParallelTask(
         name="Upsample Label Image",

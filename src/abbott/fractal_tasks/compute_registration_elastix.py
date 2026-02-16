@@ -22,7 +22,7 @@ from ngio.tables import GenericTable
 from pydantic import validate_call
 from skimage.exposure import rescale_intensity
 
-from abbott.fractal_tasks.conversions import to_itk
+from abbott.registration.conversions import to_itk
 from abbott.registration.fractal_helper_tasks import pad_to_max_shape
 from abbott.registration.itk_elastix import (
     create_identity_transform_from_file,
@@ -46,7 +46,7 @@ def compute_registration_elastix(
     parameter_files: list[str],
     lower_rescale_quantile: float = 0.0,
     upper_rescale_quantile: float = 0.99,
-    roi_table: str = "FOV_ROI_table",  # TODO: allow "emb_ROI_table"
+    roi_table: str = "FOV_ROI_table",
     use_masks: bool = False,
     masking_label_name: Optional[str] = None,
     skip_failed_rois: bool = True,
@@ -108,32 +108,33 @@ def compute_registration_elastix(
 
     # Load channel to register by
     ome_zarr_ref = open_ome_zarr_container(reference_zarr_url)
-    channel_index_ref = ome_zarr_ref.image_meta._get_channel_idx_by_wavelength_id(
-        ref_wavelength_id
-    )
+    channel_index_ref = ome_zarr_ref.get_channel_idx(wavelength_id=ref_wavelength_id)
 
     ome_zarr_mov = open_ome_zarr_container(zarr_url)
     if mov_wavelength_id is not None:
-        channel_index_align = ome_zarr_mov.image_meta._get_channel_idx_by_wavelength_id(
-            mov_wavelength_id
+        channel_index_align = ome_zarr_mov.get_channel_idx(
+            wavelength_id=mov_wavelength_id
         )
         logger.info(f"Running registration with {mov_wavelength_id=}")
     else:
-        channel_index_align = ome_zarr_mov.image_meta._get_channel_idx_by_wavelength_id(
-            ref_wavelength_id
+        channel_index_align = ome_zarr_mov.get_channel_idx(
+            wavelength_id=ref_wavelength_id
         )
 
-    
     ref_images = ome_zarr_ref.get_image(path=str(level))
     mov_images = ome_zarr_mov.get_image(path=str(level))
 
     # Read ROIs
-    ref_roi_table = ome_zarr_ref.get_table(roi_table)
-    mov_roi_table = ome_zarr_mov.get_table(roi_table)
+    if use_masks:
+        ref_roi_table = ome_zarr_ref.get_masking_roi_table(roi_table)
+        mov_roi_table = ome_zarr_mov.get_masking_roi_table(roi_table)
+    else:
+        ref_roi_table = ome_zarr_ref.get_table(roi_table)
+        mov_roi_table = ome_zarr_mov.get_table(roi_table)
 
     # Masked loading checks
     if use_masks:
-        if ref_roi_table.type() != "masking_roi_table":
+        if ref_roi_table.table_type() != "masking_roi_table":
             logger.warning(
                 f"ROI table {roi_table} in reference OME-Zarr is not "
                 "a masking ROI table. Falling back to use_masks=False."
@@ -157,7 +158,6 @@ def compute_registration_elastix(
             masking_table_name=roi_table,
             path=str(level),
         )
-
     logger.info(
         f"Found {len(ref_roi_table.rois())} ROIs in {roi_table=} to be processed."
     )
@@ -189,7 +189,7 @@ def compute_registration_elastix(
     for i_ROI, ref_roi in enumerate(ref_roi_table.rois()):
         ROI_id = ref_roi.name
         logger.info(
-            f"Now processing ROI {ROI_id} ({i_ROI+1}/{num_ROIs}) "
+            f"Now processing ROI {ROI_id} ({i_ROI + 1}/{num_ROIs}) "
             f"for {ref_wavelength_id=}."
         )
 
@@ -203,24 +203,26 @@ def compute_registration_elastix(
                 c=channel_index_align,
             ).squeeze()
 
-            # Pad images to the same shape
-            # Calculate maximum dimensions needed
-            max_shape = tuple(
-                max(r, m) for r, m in zip(img_ref.shape, img_mov.shape, strict=False)
-            )
-            img_ref = pad_to_max_shape(img_ref, max_shape)
-            img_mov = pad_to_max_shape(img_mov, max_shape)
-
         else:
             img_ref = ref_images.get_roi(
                 roi=ref_roi,
                 c=channel_index_ref,
             ).squeeze()
-            mov_roi = mov_roi_table.get(ROI_id)
+            mov_roi = [roi for roi in mov_roi_table.rois() if roi.name == ref_roi.name][
+                0
+            ]
             img_mov = mov_images.get_roi(
                 roi=mov_roi,
                 c=channel_index_align,
             ).squeeze()
+
+        # Pad images to the same shape
+        # Calculate maximum dimensions needed
+        max_shape = tuple(
+            max(r, m) for r, m in zip(img_ref.shape, img_mov.shape, strict=False)
+        )
+        img_ref = pad_to_max_shape(img_ref, max_shape)
+        img_mov = pad_to_max_shape(img_mov, max_shape)
 
         # Rescale the images
         img_ref = rescale_intensity(

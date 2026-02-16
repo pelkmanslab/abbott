@@ -27,7 +27,7 @@ def safe_rmtree(path, retries=5, delay=0.5):
             if not os.path.exists(path):
                 return
         except Exception as e:
-            print(f"Retry {i+1}/{retries} failed: {e}")
+            print(f"Retry {i + 1}/{retries} failed: {e}")
             time.sleep(delay)
     raise RuntimeError(f"Failed to remove directory: {path}")
 

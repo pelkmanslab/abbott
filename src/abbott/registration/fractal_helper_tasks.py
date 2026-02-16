@@ -14,7 +14,7 @@ import logging
 from collections import defaultdict
 
 import numpy as np
-from ngio.hcs.plate import OmeZarrWell
+from ngio.hcs._plate import OmeZarrWell
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def get_pad_width(array_shape, max_shape):
     return pad_width
 
 
-def unpad_array(padded_array, pad_width):
+def unpad_array(padded_array: np.ndarray, pad_width: list[tuple]) -> np.ndarray:
     """Unpad array using stored padding widths.
 
     Args:

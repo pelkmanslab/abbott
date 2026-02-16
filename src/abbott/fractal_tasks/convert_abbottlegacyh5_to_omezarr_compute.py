@@ -20,7 +20,7 @@ from fractal_tasks_core.cellvoyager.metadata import (
     parse_yokogawa_metadata,
 )
 from ngio import RoiPixels, open_ome_zarr_container
-from ngio.images.ome_zarr_container import create_empty_ome_zarr
+from ngio.images._ome_zarr_container import create_empty_ome_zarr
 from ngio.tables import RoiTable
 from ngio.utils._errors import NgioFileExistsError
 from pydantic import Field, validate_call
@@ -163,7 +163,7 @@ def convert_single_h5_to_ome(
     chunk_shape = tuple(
         min(c, s) for c, s in zip(chunk_shape, on_disk_shape, strict=True)
     )
-    logging.info(f"Chunk shape: {chunk_shape}" f"On-disk shape {on_disk_shape}")
+    logging.info(f"Chunk shape: {chunk_shape}On-disk shape {on_disk_shape}")
 
     # Free memory
     del sample_arrays

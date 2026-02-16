@@ -9,7 +9,7 @@ from typing import Optional, Union
 import itk
 import numpy as np
 
-from abbott.fractal_tasks.conversions import to_itk, to_labelmap, to_numpy
+from abbott.registration.conversions import to_itk, to_labelmap, to_numpy
 
 
 def median(img: itk.Image, radius: int):
