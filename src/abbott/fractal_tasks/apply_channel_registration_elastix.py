@@ -248,9 +248,9 @@ def apply_channel_registration_elastix(
         label_names = ome_zarr.list_labels()
         for label_name in label_names:
             new_label = registered_ome_zarr.derive_label(label_name, overwrite=True)
-            ref_label = registered_ome_zarr.get_label(label_name, path="0")
-            ref_label = ref_label.get_array(mode="dask")
-            new_label.set_array(ref_label)
+            ref_label = ome_zarr.get_label(label_name, path="0")
+            ref_label_da = ref_label.get_array(mode="dask")
+            new_label.set_array(ref_label_da)
             new_label.consolidate()
         logger.info("Finished copying labels.")
 
