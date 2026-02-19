@@ -112,6 +112,7 @@ def apply_channel_registration_elastix(
     reference_wavelength: str,
     transformation_table_name: str = "Channel_Registration_Transforms",
     iterator_configuration: IteratorConfiguration | None = None,
+    copy_labels: bool = True,
     level_path: int = 0,
     output_image_suffix: str = "channels_registered",
     overwrite_input: bool = False,
@@ -129,6 +130,8 @@ def apply_channel_registration_elastix(
         iterator_configuration (IteratorConfiguration | None): Configuration
             for the segmentation iterator. This can be used to specify masking
             and/or a ROI table.
+        copy_labels: Whether to copy the labels from the reference acquisition
+            to the new registered image.
         level_path (str | None): If the OME-Zarr has multiple resolution levels,
             the level to use can be specified here. If not provided, the highest
             resolution level will be used.
@@ -240,19 +243,20 @@ def apply_channel_registration_elastix(
     # Copy labels and tables from the original OME-Zarr to the new registered OME-Zarr
     # if overwrite_input is False.
     if not overwrite_input:
-        logger.info(
-            "Copying labels from non-channel registered OME-Zarr to channel "
-            "registered OME-Zarr."
-        )
+        if copy_labels:
+            logger.info(
+                "Copying labels from non-channel registered OME-Zarr to channel "
+                "registered OME-Zarr."
+            )
 
-        label_names = ome_zarr.list_labels()
-        for label_name in label_names:
-            new_label = registered_ome_zarr.derive_label(label_name, overwrite=True)
-            ref_label = registered_ome_zarr.get_label(label_name, path="0")
-            ref_label = ref_label.get_array(mode="dask")
-            new_label.set_array(ref_label)
-            new_label.consolidate()
-        logger.info("Finished copying labels.")
+            label_names = ome_zarr.list_labels()
+            for label_name in label_names:
+                new_label = registered_ome_zarr.derive_label(label_name, overwrite=True)
+                ref_label = ome_zarr.get_label(label_name, path="0")
+                ref_label_da = ref_label.get_array(mode="dask")
+                new_label.set_array(ref_label_da)
+                new_label.consolidate()
+            logger.info("Finished copying labels.")
 
         # Copy tables
         logger.info(

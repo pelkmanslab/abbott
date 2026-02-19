@@ -230,22 +230,25 @@ def apply_registration_warpfield(
     ####################
     # Process labels
     ####################
-    logger.info("Copying labels from the reference acquisition to the new acquisition.")
+    if copy_labels:
+        logger.info(
+            "Copying labels from the reference acquisition to the new acquisition."
+        )
+        new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
-    ome_zarr_new = open_ome_zarr_container(new_zarr_url)
-    # Get correct images/labels by pixel_size
-    pixel_size = ome_zarr_new.get_image(path="0").pixel_size
-
-    label_names = ome_zarr_ref.list_labels()
-    for label_name in label_names:
-        new_label = ome_zarr_new.derive_label(label_name, overwrite=overwrite_input)
-        ref_label = ome_zarr_ref.get_label(label_name, pixel_size=pixel_size)
-        ref_label = ref_label.get_array(mode="dask")
-        new_label.set_array(ref_label)
-        new_label.consolidate()
-    logger.info(
-        "Finished copying labels from the reference acquisition to the new acquisition."
-    )
+        label_names = ome_zarr_ref.list_labels()
+        for label_name in label_names:
+            ref_label = ome_zarr_ref.get_label(label_name, path="0")
+            new_label = new_ome_zarr.derive_label(
+                label_name, ref_image=ref_label, overwrite=overwrite_input
+            )
+            ref_label_array = ref_label.get_array(mode="dask")
+            new_label.set_array(ref_label_array)
+            new_label.consolidate()
+        logger.info(
+            "Finished copying labels from the reference acquisition to "
+            "the new acquisition."
+        )
 
     ####################
     # Copy tables

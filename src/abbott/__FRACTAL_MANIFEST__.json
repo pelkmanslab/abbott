@@ -611,6 +611,12 @@
             "title": "Iterator Configuration",
             "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
           },
+          "copy_labels": {
+            "default": true,
+            "title": "Copy Labels",
+            "type": "boolean",
+            "description": "Whether to copy the labels from the reference acquisition to the new registered image."
+          },
           "level_path": {
             "default": 0,
             "title": "Level Path",
