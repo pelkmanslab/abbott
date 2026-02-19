@@ -47,6 +47,7 @@ def apply_registration_warpfield(
     level: int = 0,
     output_image_suffix: str = "registered",
     roi_table: str,
+    copy_labels: bool = True,
     use_masks: bool = False,
     masking_label_name: Optional[str] = None,
     overwrite_input: bool = True,
@@ -66,6 +67,8 @@ def apply_registration_warpfield(
             registration.
             Examples: `FOV_ROI_table` => loop over the field of views,
             `well_ROI_table` => process the whole well as one image.
+        copy_labels: Whether to copy the labels from the reference acquisition
+            to the new registered image.
         use_masks: If `True`, try to use masked loading and fall back to
             `use_masks=False` if the ROI table is not suitable. Masked
             loading is relevant when only a subset of the bounding box should

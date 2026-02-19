@@ -188,6 +188,12 @@
             "type": "string",
             "description": "Name of the ROI table which has been used during computation of registration. Examples: `FOV_ROI_table` => loop over the field of views, `well_ROI_table` => process the whole well as one image."
           },
+          "copy_labels": {
+            "default": true,
+            "title": "Copy Labels",
+            "type": "boolean",
+            "description": "Whether to copy the labels from the reference acquisition to the new registered image."
+          },
           "use_masks": {
             "default": false,
             "title": "Use Masks",
@@ -408,6 +414,12 @@
             "title": "Roi Table",
             "type": "string",
             "description": "Name of the ROI table which has been used during computation of registration. Examples: `FOV_ROI_table` => loop over the field of views, `well_ROI_table` => process the whole well as one image."
+          },
+          "copy_labels": {
+            "default": true,
+            "title": "Copy Labels",
+            "type": "boolean",
+            "description": "Whether to copy the labels from the reference acquisition to the new registered image."
           },
           "use_masks": {
             "default": false,
