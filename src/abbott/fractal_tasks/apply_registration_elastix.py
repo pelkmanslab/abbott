@@ -197,13 +197,12 @@ def apply_registration_elastix(
     ####################
     # Process labels
     ####################
+    new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
     if copy_labels:
         logger.info(
             "Copying labels from the reference acquisition to the new " "acquisition."
         )
-
-        new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
         label_names = ome_zarr_ref.list_labels()
         for label_name in label_names:

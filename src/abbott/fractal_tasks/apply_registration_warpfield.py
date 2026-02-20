@@ -230,11 +230,12 @@ def apply_registration_warpfield(
     ####################
     # Process labels
     ####################
+    new_ome_zarr = open_ome_zarr_container(new_zarr_url)
+
     if copy_labels:
         logger.info(
             "Copying labels from the reference acquisition to the new acquisition."
         )
-        new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
         label_names = ome_zarr_ref.list_labels()
         for label_name in label_names:
@@ -266,14 +267,14 @@ def apply_registration_warpfield(
             or table.table_type() == "masking_roi_table"
         ):
             # Copy ROI tables from the reference acquisition
-            ome_zarr_new.add_table(table_name, table, overwrite=overwrite_input)
+            new_ome_zarr.add_table(table_name, table, overwrite=overwrite_input)
         else:
             logger.warning(
                 f"{zarr_url} contained a table that is not a standard "
                 "ROI table. The `Apply Registration Warpfield` task is "
                 "best used before additional e.g. feature tables are generated."
             )
-            ome_zarr_new.add_table(
+            new_ome_zarr.add_table(
                 table_name,
                 table,
                 overwrite=overwrite_input,
