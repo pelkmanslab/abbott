@@ -197,13 +197,12 @@ def apply_registration_elastix(
     ####################
     # Process labels
     ####################
+    new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
     if copy_labels:
         logger.info(
             "Copying labels from the reference acquisition to the new " "acquisition."
         )
-
-        new_ome_zarr = open_ome_zarr_container(new_zarr_url)
 
         label_names = ome_zarr_ref.list_labels()
         for label_name in label_names:
@@ -235,7 +234,7 @@ def apply_registration_elastix(
             or table.table_type() == "masking_roi_table"
         ):
             # Copy ROI tables from the reference acquisition
-            new_ome_zarr.add_table(table_name, table, overwrite=overwrite_input)
+            new_ome_zarr.add_table(table_name, table, overwrite=True)
         else:
             logger.warning(
                 f"{zarr_url} contained a table that is not a standard "
@@ -245,7 +244,7 @@ def apply_registration_elastix(
             new_ome_zarr.add_table(
                 table_name,
                 table,
-                overwrite=overwrite_input,
+                overwrite=True,
             )
 
     logger.info(
