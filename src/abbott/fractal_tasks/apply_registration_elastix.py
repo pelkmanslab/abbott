@@ -234,7 +234,7 @@ def apply_registration_elastix(
             or table.table_type() == "masking_roi_table"
         ):
             # Copy ROI tables from the reference acquisition
-            new_ome_zarr.add_table(table_name, table, overwrite=overwrite_input)
+            new_ome_zarr.add_table(table_name, table, overwrite=True)
         else:
             logger.warning(
                 f"{zarr_url} contained a table that is not a standard "
@@ -244,7 +244,7 @@ def apply_registration_elastix(
             new_ome_zarr.add_table(
                 table_name,
                 table,
-                overwrite=overwrite_input,
+                overwrite=True,
             )
 
     logger.info(
