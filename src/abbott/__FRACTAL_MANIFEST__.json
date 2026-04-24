@@ -450,13 +450,16 @@
     },
     {
       "name": "Compute Channel Registration (elastix)",
+      "input_types": {
+        "channels_registered": false
+      },
       "category": "Registration",
       "modality": "HCS",
       "tags": [
         "Multiplexing",
         "3D"
       ],
-      "docs_info": "### Purpose\n- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the elastix library.\n- Needs Elastix profiles to configure the registration.\n- Processes images grouped by well, under the assumption that each well contains one image per acquisition.\n- Calculates transformations for **specified regions of interest (ROIs)** and stores the results in a registration subfolder per OME-Zarr image.\n- Typically used as the first task in a workflow, followed by `Apply Channel Registration (elastix)`.\n\n### Limitations\n- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.\n- Assumes each well contains a single image per acquisition.\n",
+      "docs_info": "### Purpose\nComputes **image-based channel registration** transformations for OME-Zarr images using the [elastix](https://elastix.lumc.nl/) library.\n\nFor each ROI, all channels (except the reference) are summed and registered against the reference channel using e.g. a **SimilarityTransform** (or any elastix transform configured via parameter files). The resulting transformation parameters are stored in a `GenericTable` within the OME-Zarr image.\n\nRegistration can be performed on intensity or label images (in case intensity images to be registered contain little similarity).\n\nTypically used as the **first task** in a channel registration workflow, followed by `Apply Channel Registration (elastix)`.\n\n### Workflow context\n- **This task** \u2014 computes per-ROI transformations and saves them to a table.\n- **`Apply Channel Registration (elastix)`** \u2014 reads the transformation table written by this task and applies it to the images.\n\n### Limitations\n- Masking (`use_masks=True`) requires a masking ROI table; falls back to unmasked loading with a warning if not available.\n",
       "type": "parallel",
       "executable_parallel": "fractal_tasks/compute_channel_registration_elastix.py",
       "meta_parallel": {
@@ -465,6 +468,30 @@
       },
       "args_schema_parallel": {
         "$defs": {
+          "ChannelSelectionModel": {
+            "description": "Model for channel selection.",
+            "properties": {
+              "mode": {
+                "default": "label",
+                "enum": [
+                  "label",
+                  "wavelength_id",
+                  "index"
+                ],
+                "title": "Mode",
+                "type": "string"
+              },
+              "identifier": {
+                "title": "Identifier",
+                "type": "string"
+              }
+            },
+            "required": [
+              "identifier"
+            ],
+            "title": "ChannelSelectionModel",
+            "type": "object"
+          },
           "IteratorConfiguration": {
             "description": "Advanced configuration.",
             "properties": {
@@ -476,6 +503,28 @@
             },
             "title": "IteratorConfiguration",
             "type": "object"
+          },
+          "LabelInputModel": {
+            "description": "Configuration for label-based channel registration.",
+            "properties": {
+              "reference_label_name": {
+                "title": "Reference Label Name",
+                "type": "string"
+              },
+              "align_label_names": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Align Label Names",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reference_label_name",
+              "align_label_names"
+            ],
+            "title": "LabelInputModel",
+            "type": "object"
           }
         },
         "additionalProperties": false,
@@ -485,10 +534,19 @@
             "type": "string",
             "description": "Path or url to the individual OME-Zarr image to be processed. (standard argument for Fractal tasks, managed by Fractal server)."
           },
-          "reference_wavelength": {
-            "title": "Reference Wavelength",
-            "type": "string",
-            "description": "Wavelength that will be used for image-based registration; e.g. `A01_C01` for Yokogawa, `C01` for MD."
+          "reference_channel": {
+            "$ref": "#/$defs/ChannelSelectionModel",
+            "title": "Reference Channel",
+            "description": "Reference channel to use for channel registration. Ignored when `calculate_on_labels` is set."
+          },
+          "calculate_on_labels": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/LabelInputModel"
+              }
+            ],
+            "title": "Calculate On Labels",
+            "description": "If provided, the registration transform is calculated on label images instead of intensity images. `reference_channel` is ignored in this case."
           },
           "parameter_files": {
             "items": {
@@ -536,11 +594,22 @@
             "title": "Overwrite",
             "type": "boolean",
             "description": "Whether to overwrite existing registration transformations. Default is True."
+          },
+          "use_masks": {
+            "default": false,
+            "title": "Use Masks",
+            "type": "boolean",
+            "description": "If `True`, use masked loading via a masking ROI table. Requires `masking_label_name` and a roi_table set in `iterator_configuration`. Falls back to `use_masks=False` if either is missing or the ROI table is not a masking ROI table."
+          },
+          "masking_label_name": {
+            "title": "Masking Label Name",
+            "type": "string",
+            "description": "Name of the label image used for masking ROIs, e.g. `embryo`. Required when `use_masks=True`."
           }
         },
         "required": [
           "zarr_url",
-          "reference_wavelength",
+          "reference_channel",
           "parameter_files"
         ],
         "type": "object",
@@ -571,6 +640,30 @@
       },
       "args_schema_parallel": {
         "$defs": {
+          "ChannelSelectionModel": {
+            "description": "Model for channel selection.",
+            "properties": {
+              "mode": {
+                "default": "label",
+                "enum": [
+                  "label",
+                  "wavelength_id",
+                  "index"
+                ],
+                "title": "Mode",
+                "type": "string"
+              },
+              "identifier": {
+                "title": "Identifier",
+                "type": "string"
+              }
+            },
+            "required": [
+              "identifier"
+            ],
+            "title": "ChannelSelectionModel",
+            "type": "object"
+          },
           "IteratorConfiguration": {
             "description": "Advanced configuration.",
             "properties": {
@@ -591,25 +684,21 @@
             "type": "string",
             "description": "Path or url to the individual OME-Zarr image to be processed. (standard argument for Fractal tasks, managed by Fractal server)."
           },
-          "reference_wavelength": {
-            "title": "Reference Wavelength",
-            "type": "string",
-            "description": "Against which wavelength the registration was calculated."
+          "reference_channel": {
+            "$ref": "#/$defs/ChannelSelectionModel",
+            "title": "Reference Channel",
+            "description": "Reference channel used during registration computation."
+          },
+          "iterator_configuration": {
+            "$ref": "#/$defs/IteratorConfiguration",
+            "title": "Iterator Configuration",
+            "description": "Configuration for the segmentation iterator. This can be used to specify a ROI table (standard or masking) to restrict processing to specific ROIs."
           },
           "transformation_table_name": {
             "default": "Channel_Registration_Transforms",
             "title": "Transformation Table Name",
             "type": "string",
             "description": "Name of the table in which the transformations have been stored in preceeding computation task. Defaults to \"Channel_Registration_Transforms\"."
-          },
-          "iterator_configuration": {
-            "allOf": [
-              {
-                "$ref": "#/$defs/IteratorConfiguration"
-              }
-            ],
-            "title": "Iterator Configuration",
-            "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
           },
           "copy_labels": {
             "default": true,
@@ -634,11 +723,23 @@
             "title": "Overwrite Input",
             "type": "boolean",
             "description": "Whether to overwrite the input zarr file with the new registered zarr file. If False, the new registered zarr file will be created with output_image_suffix."
+          },
+          "use_masks": {
+            "default": false,
+            "title": "Use Masks",
+            "type": "boolean",
+            "description": "If `True`, use masked loading via a masking ROI table. Requires `masking_label_name` and a roi_table set in `iterator_configuration`. Falls back to `use_masks=False` if either is missing or the ROI table is not a masking ROI table."
+          },
+          "masking_label_name": {
+            "title": "Masking Label Name",
+            "type": "string",
+            "description": "Name of the label image used for masking ROIs, e.g. `embryo`. Required when `use_masks=True`."
           }
         },
         "required": [
           "zarr_url",
-          "reference_wavelength"
+          "reference_channel",
+          "iterator_configuration"
         ],
         "type": "object",
         "title": "ApplyChannelRegistrationElastix"
@@ -1039,6 +1140,24 @@
             "title": "AllowedH5Extensions",
             "type": "string"
           },
+          "ConverterLabelOmeroChannel": {
+            "description": "Custom class for Omero channels, based on OME-NGFF v0.4.",
+            "properties": {
+              "label": {
+                "title": "Label",
+                "type": "string"
+              },
+              "new_label": {
+                "title": "New Label",
+                "type": "string"
+              }
+            },
+            "required": [
+              "label"
+            ],
+            "title": "ConverterLabelOmeroChannel",
+            "type": "object"
+          },
           "ConverterMultiplexingAcquisition": {
             "description": "Input class for Multiplexing Cellvoyager converter",
             "properties": {
@@ -1051,7 +1170,7 @@
               },
               "allowed_label_channels": {
                 "items": {
-                  "$ref": "#/$defs/ConverterOmeroChannel"
+                  "$ref": "#/$defs/ConverterLabelOmeroChannel"
                 },
                 "title": "Allowed Label Channels",
                 "type": "array"
@@ -1084,7 +1203,8 @@
               }
             },
             "required": [
-              "wavelength_id"
+              "wavelength_id",
+              "label"
             ],
             "title": "ConverterOmeroChannel",
             "type": "object"
@@ -1171,6 +1291,24 @@
       },
       "args_schema_parallel": {
         "$defs": {
+          "ConverterLabelOmeroChannel": {
+            "description": "Custom class for Omero channels, based on OME-NGFF v0.4.",
+            "properties": {
+              "label": {
+                "title": "Label",
+                "type": "string"
+              },
+              "new_label": {
+                "title": "New Label",
+                "type": "string"
+              }
+            },
+            "required": [
+              "label"
+            ],
+            "title": "ConverterLabelOmeroChannel",
+            "type": "object"
+          },
           "ConverterMultiplexingAcquisition": {
             "description": "Input class for Multiplexing Cellvoyager converter",
             "properties": {
@@ -1183,7 +1321,7 @@
               },
               "allowed_label_channels": {
                 "items": {
-                  "$ref": "#/$defs/ConverterOmeroChannel"
+                  "$ref": "#/$defs/ConverterLabelOmeroChannel"
                 },
                 "title": "Allowed Label Channels",
                 "type": "array"
@@ -1261,7 +1399,8 @@
               }
             },
             "required": [
-              "wavelength_id"
+              "wavelength_id",
+              "label"
             ],
             "title": "ConverterOmeroChannel",
             "type": "object"
@@ -1377,7 +1516,7 @@
             "default": 0,
             "title": "Level",
             "type": "integer",
-            "description": "The level of the image to convert. Currently only level 0 is supported."
+            "description": "The level of the image to convert."
           },
           "wavelengths": {
             "allOf": [

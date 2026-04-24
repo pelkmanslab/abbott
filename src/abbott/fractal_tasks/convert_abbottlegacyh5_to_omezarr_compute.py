@@ -35,6 +35,7 @@ from abbott.fractal_tasks.converter.task_utils import (
     extract_ROI_coordinates,
     extract_ROIs_from_h5_files,
     find_chunk_shape,
+    find_inconsistent_z_field_patterns,
     find_shape,
     h5_load,
 )
@@ -82,7 +83,7 @@ def convert_single_h5_to_ome(
     pixel_sizes_zyx_dict = None
     built_array = False
 
-    for file in files_well:
+    for file in file_roi_dict:
         ROI_id = file_roi_dict[file]
         # Use first image channel to read shape/scale;
         # reuse the handle for all reads of this file
@@ -335,7 +336,7 @@ def convert_abbottlegacyh5_to_omezarr_compute(
             `zarr_dir/plate_name/row/column/`.
         init_args: Initialization arguments passed from init task.
         input_path: Input path to the H5 file, or a folder containing H5 files.
-        level: The level of the image to convert. Currently only level 0 is supported.
+        level: The level of the image to convert.
         wavelengths: Wavelength conversion dictionary mapping.
         axes_names: The layout of the image data. Currently only implemented for 'ZYX'.
         ome_zarr_parameters (OMEZarrBuilderParams): Parameters for the OME-Zarr builder.
@@ -343,9 +344,6 @@ def convert_abbottlegacyh5_to_omezarr_compute(
     """
     logger.info(f"Converting abbott legacy H5 files to OME-Zarr for {zarr_url}")
     logger.info(f"For axes: {axes_names} and level {level}")
-
-    if level != 0:
-        raise ValueError("Currently only level 0 is supported for conversion.")
 
     if axes_names != "ZYX":
         raise ValueError(
@@ -363,13 +361,36 @@ def convert_abbottlegacyh5_to_omezarr_compute(
     files = init_args.input_files
     files_well = [file for file in files if init_args.well_ID in Path(file).stem]
 
-    # Get acquisition metadata
-    site_metadata, _ = parse_yokogawa_metadata(
-        mrf_path=init_args.mrf_path,
-        mlf_path=init_args.mlf_path,
-        include_patterns=init_args.include_glob_patterns,
-        exclude_patterns=init_args.exclude_glob_patterns,
-    )
+    # Get acquisition metadata, auto-excluding fields with inconsistent Z steps
+    try:
+        site_metadata, _ = parse_yokogawa_metadata(
+            mrf_path=init_args.mrf_path,
+            mlf_path=init_args.mlf_path,
+            include_patterns=init_args.include_glob_patterns,
+            exclude_patterns=init_args.exclude_glob_patterns,
+        )
+    except ValueError as e:
+        if "consistency check failed" not in str(e):
+            raise
+        extra_exclude = find_inconsistent_z_field_patterns(
+            mrf_path=init_args.mrf_path,
+            mlf_path=init_args.mlf_path,
+            include_patterns=init_args.include_glob_patterns,
+            exclude_patterns=init_args.exclude_glob_patterns,
+        )
+        site_metadata, _ = parse_yokogawa_metadata(
+            mrf_path=init_args.mrf_path,
+            mlf_path=init_args.mlf_path,
+            include_patterns=init_args.include_glob_patterns,
+            exclude_patterns=(init_args.exclude_glob_patterns or []) + extra_exclude,
+        )
+
+    well_id = init_args.well_ID
+    if well_id not in site_metadata.index.get_level_values(0):
+        raise ValueError(
+            f"Well '{well_id}' was not found in the Cellvoyager metadata "
+            f"({init_args.mlf_path}). Check that the MLF file covers this well."
+        )
 
     acquisition_id = Path(zarr_url).stem
 

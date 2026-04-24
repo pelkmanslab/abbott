@@ -33,7 +33,19 @@ class ConverterOmeroChannel(BaseModel):
 
     # From OME-NGFF v0.4 transitional metadata
 
-    label: str | None = None
+    label: str
+    new_label: str | None = None
+
+
+class ConverterLabelOmeroChannel(BaseModel):
+    """Custom class for Omero channels, based on OME-NGFF v0.4.
+
+    Attributes:
+        label: Name of the channel.
+        new_label: Optional new name for the channel.
+    """
+
+    label: str
     new_label: str | None = None
 
 
@@ -50,7 +62,7 @@ class ConverterMultiplexingAcquisition(BaseModel):
     """
 
     allowed_image_channels: list[ConverterOmeroChannel]
-    allowed_label_channels: list[ConverterOmeroChannel] | None = None
+    allowed_label_channels: list[ConverterLabelOmeroChannel] | None = None
 
 
 class AllowedH5Extensions(str, Enum):
