@@ -18,10 +18,7 @@ import fractal_tasks_core
 from fractal_tasks_core.cellvoyager.filenames import (
     glob_with_multiple_patterns,
 )
-from fractal_tasks_core.cellvoyager.metadata import (
-    parse_yokogawa_metadata,
-    sanitize_string,
-)
+from fractal_tasks_core.cellvoyager.metadata import sanitize_string
 from fractal_tasks_core.cellvoyager.wells import generate_row_col_split
 from fractal_tasks_core.channels import check_unique_wavelength_ids
 from ngio import ImageInWellPath, create_empty_plate
@@ -115,20 +112,6 @@ def convert_abbottlegacyh5_to_omezarr_init(
     if not os.path.isfile(mlf_path):
         raise ValueError(f"{mlf_path} does not exist.")
 
-    # Preliminary check if FOV-metadata dataframe can be loaded
-    try:
-        parse_yokogawa_metadata(
-            mrf_path,
-            mlf_path,
-            include_patterns=include_glob_patterns,
-            exclude_patterns=exclude_glob_patterns,
-        )
-    except Exception as e:
-        raise ValueError(
-            f"Failed to parse Yokogawa metadata from {mrf_path} and {mlf_path}. "
-            f"Please check if the files and the glob patterns are valid."
-        ) from e
-
     # Preliminary checks on acquisitions
     # Note that in metadata the keys of dictionary arguments should be
     # strings (and not integers), so that they can be read from a JSON file
@@ -136,8 +119,6 @@ def convert_abbottlegacyh5_to_omezarr_init(
         if not isinstance(key, str):
             raise ValueError(f"{acquisitions=} has non-string keys")
         check_unique_wavelength_ids(values.allowed_image_channels)
-        if values.allowed_label_channels is not None:
-            check_unique_wavelength_ids(values.allowed_label_channels)
         try:
             int(key)
         except ValueError as err:

@@ -57,6 +57,7 @@ TASK_LIST = [
     ),
     ParallelTask(
         name="Compute Channel Registration (elastix)",
+        input_types=dict(channels_registered=False),
         executable="fractal_tasks/compute_channel_registration_elastix.py",
         meta={"cpus_per_task": 4, "mem": 16000},
         category="Registration",

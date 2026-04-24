@@ -1,10 +1,15 @@
 ### Purpose
-- **Computes image-based registration** transformations for acquisitions in **HCS** OME-Zarr datasets using the elastix library.
-- Needs Elastix profiles to configure the registration.
-- Processes images grouped by well, under the assumption that each well contains one image per acquisition.
-- Calculates transformations for **specified regions of interest (ROIs)** and stores the results in a registration subfolder per OME-Zarr image.
-- Typically used as the first task in a workflow, followed by `Apply Channel Registration (elastix)`.
+Computes **image-based channel registration** transformations for OME-Zarr images using the [elastix](https://elastix.lumc.nl/) library.
+
+For each ROI, all channels (except the reference) are summed and registered against the reference channel using e.g. a **SimilarityTransform** (or any elastix transform configured via parameter files). The resulting transformation parameters are stored in a `GenericTable` within the OME-Zarr image.
+
+Registration can be performed on intensity or label images (in case intensity images to be registered contain little similarity).
+
+Typically used as the **first task** in a channel registration workflow, followed by `Apply Channel Registration (elastix)`.
+
+### Workflow context
+- **This task** — computes per-ROI transformations and saves them to a table.
+- **`Apply Channel Registration (elastix)`** — reads the transformation table written by this task and applies it to the images.
 
 ### Limitations
-- Supports only HCS OME-Zarr datasets, leveraging their acquisition metadata and well-based image grouping.
-- Assumes each well contains a single image per acquisition.
+- Masking (`use_masks=True`) requires a masking ROI table; falls back to unmasked loading with a warning if not available.

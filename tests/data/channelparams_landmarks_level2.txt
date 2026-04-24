@@ -1,0 +1,27 @@
+(CenterOfRotationPoint 250 250 150)
+(Direction 1 0 0 0 1 0 0 0 1)
+(FixedImageDimension 3)
+(FixedInternalImagePixelType "float")
+(HowToCombineTransforms "Compose")
+(Index 0 0 0)
+(InitialTransformParameterFileName "NoInitialTransform")
+(MovingImageDimension 3)
+(MovingInternalImagePixelType "float")
+(NumberOfParameters 12)
+(Origin 0 0 0)
+(Size 501 501 301)
+(Spacing 1 1 1)
+(Transform "AffineTransform")
+(TransformParameters 0.9196017934770491 -0.003503790673440599 -0.11364287566866262 -0.003374763769697957 0.9180519999347513 -0.02721711857046784 0.000004343965518836183 0.000013418130272447316 0.9999755189140832 -2.8645783946592664 -0.8775214526429709 0.009415024071476649)
+(UseDirectionCosines "true")
+
+// ResampleInterpolator specific
+(FinalBSplineInterpolationOrder 3)
+(ResampleInterpolator "FinalBSplineInterpolator")
+
+// Resampler specific
+(CompressResultImage "false")
+(DefaultPixelValue 0)
+(Resampler "DefaultResampler")
+(ResultImageFormat "nii")
+(ResultImagePixelType "float32")

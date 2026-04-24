@@ -19,6 +19,7 @@ import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
+from fractal_tasks_core.cellvoyager.metadata import read_metadata_files
 from fractal_tasks_core.roi import remove_FOV_overlaps
 from fractal_tasks_core.roi.v1 import prepare_FOV_ROI_table
 
@@ -28,6 +29,61 @@ from abbott.fractal_tasks.converter.io_models import (
 from abbott.fractal_tasks.converter.tile import OriginDict, Point
 
 logger = logging.getLogger(__name__)
+
+
+def find_inconsistent_z_field_patterns(
+    mrf_path: str,
+    mlf_path: str,
+    include_patterns: Optional[list[str]] = None,
+    exclude_patterns: Optional[list[str]] = None,
+) -> list[str]:
+    """Return MLF exclude patterns for fields with inconsistent Z steps across channels.
+
+    Uses the raw MLF data to detect (well, FieldIndex) pairs where channels have
+    different numbers of Z planes, then returns CellVoyager filename patterns that
+    can be passed as ``exclude_patterns`` to ``parse_yokogawa_metadata`` to skip
+    those fields.
+
+    Args:
+        mrf_path: Path to MeasurementDetail.mrf.
+        mlf_path: Path to MeasurementData.mlf.
+        include_patterns: Optional include patterns forwarded to the MLF reader.
+        exclude_patterns: Optional exclude patterns forwarded to the MLF reader.
+
+    Returns:
+        List of glob patterns (e.g. ``["*G05F0007*"]``) for the bad fields.
+    """
+    _, mlf_frame, _ = read_metadata_files(
+        mrf_path,
+        mlf_path,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+    )
+
+    # Replicate the Z-count consistency check from fractal_tasks_core get_z_steps
+    z_counts = (
+        mlf_frame[["well_id", "FieldIndex", "ActionIndex", "Ch", "Z"]]
+        .set_index(["well_id", "FieldIndex", "ActionIndex", "Ch"])
+        .groupby(level=[0, 1, 2, 3])
+        .count()["Z"]
+        .groupby(level=["well_id", "FieldIndex"])
+    )
+
+    bad_fields = []
+    for (well, field), group in z_counts:
+        if group.max() != group.min():
+            bad_fields.append((well, int(field)))
+
+    # CellVoyager filename format: ..._{Well}_T{t}F{field:03d}L...
+    # Use anchors on both sides of the field token to avoid partial matches
+    # (e.g. F001 must not accidentally match F0010).
+    patterns = [f"*_{well}_*F{field:03d}L*" for well, field in bad_fields]
+    if patterns:
+        logger.warning(
+            f"Found {len(bad_fields)} field(s) with inconsistent Z steps across "
+            f"channels: {bad_fields}. These will be excluded from metadata parsing."
+        )
+    return patterns
 
 
 def parse_filename(filename: str) -> dict[str, str]:
@@ -78,7 +134,12 @@ def _extract_ROI(
     y_micrometer: str,
 ) -> int:
     """Extract ROI from metadata DataFrame."""
-    metadata = metadata.loc[well_id]
+    try:
+        metadata = metadata.loc[well_id]
+    except KeyError as err:
+        raise ValueError(
+            f"Well '{well_id}' not found in the provided Cellvoyager metadata."
+        ) from err
     metadata = metadata.reset_index()
     metadata["x_micrometer"] = metadata["x_micrometer"].apply(
         lambda x: abs(round(float(x)))
@@ -109,8 +170,24 @@ def extract_ROIs_from_h5_files(
         well_id, x, y = h5_filename.split("_")
         x = x.split("-")[1] if "-" in x else x.split("+")[1]
         y = y.split("-")[1] if "-" in y else y.split("+")[1]
-        ROI = _extract_ROI(metadata, well_id, x, y)
+        try:
+            ROI = _extract_ROI(metadata, well_id, x, y)
+        except ValueError:
+            logger.warning(
+                f"No matching metadata found for {h5_file} "
+                f"(well={well_id}, x={x}, y={y}). "
+                "This field may have been excluded due to inconsistent Z steps "
+                "across channels. Skipping."
+            )
+            continue
         file_roi_dict[h5_file] = ROI
+
+    if not file_roi_dict:
+        raise ValueError(
+            f"No H5 files for well '{well_id}' could be matched to the "
+            "Cellvoyager metadata. The well may be absent from the metadata "
+            "or all its fields may have been excluded due to inconsistent Z steps."
+        )
 
     # Remove all rows that are not in the file_roi_dict.values
     metadata = metadata.loc[well_id]
@@ -234,6 +311,7 @@ def h5_load(
         f = h5_handle
     else:
         f = h5py.File(input_path, "r")
+
     dset = h5_select(
         f=f,
         attrs_select={
