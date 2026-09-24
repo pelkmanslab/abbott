@@ -38,6 +38,7 @@ from abbott.fractal_tasks.converter.task_utils import (
     find_inconsistent_z_field_patterns,
     find_shape,
     h5_load,
+    h5_load_label,
 )
 
 logger = logging.getLogger(__name__)
@@ -262,9 +263,9 @@ def convert_single_h5_to_ome(
             for roi in roi_table.rois():
                 roi_id = int(roi.name.split("_")[-1])
                 file = roi_to_file[roi_id]
-                label_img, _, _ = h5_load(
+                label_img, _, _ = h5_load_label(
                     input_path=file,
-                    channel=ch,
+                    stain=ch.label,
                     level=level,
                     cycle=int(acquisition_id),
                     img_type="label",
@@ -366,7 +367,7 @@ def convert_abbottlegacyh5_to_omezarr_compute(
         site_metadata, _ = parse_yokogawa_metadata(
             mrf_path=init_args.mrf_path,
             mlf_path=init_args.mlf_path,
-            include_patterns=init_args.include_glob_patterns,
+            include_patterns=None,
             exclude_patterns=init_args.exclude_glob_patterns,
         )
     except ValueError as e:
@@ -375,13 +376,13 @@ def convert_abbottlegacyh5_to_omezarr_compute(
         extra_exclude = find_inconsistent_z_field_patterns(
             mrf_path=init_args.mrf_path,
             mlf_path=init_args.mlf_path,
-            include_patterns=init_args.include_glob_patterns,
+            include_patterns=None,
             exclude_patterns=init_args.exclude_glob_patterns,
         )
         site_metadata, _ = parse_yokogawa_metadata(
             mrf_path=init_args.mrf_path,
             mlf_path=init_args.mlf_path,
-            include_patterns=init_args.include_glob_patterns,
+            include_patterns=None,
             exclude_patterns=(init_args.exclude_glob_patterns or []) + extra_exclude,
         )
 

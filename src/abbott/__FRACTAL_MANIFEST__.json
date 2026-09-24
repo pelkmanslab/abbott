@@ -450,9 +450,6 @@
     },
     {
       "name": "Compute Channel Registration (elastix)",
-      "input_types": {
-        "channels_registered": false
-      },
       "category": "Registration",
       "modality": "HCS",
       "tags": [
@@ -619,9 +616,6 @@
     },
     {
       "name": "Apply Channel Registration (elastix)",
-      "input_types": {
-        "channels_registered": false
-      },
       "output_types": {
         "channels_registered": true
       },
@@ -694,6 +688,14 @@
             "title": "Iterator Configuration",
             "description": "Configuration for the segmentation iterator. This can be used to specify a ROI table (standard or masking) to restrict processing to specific ROIs."
           },
+          "channels_to_align": {
+            "items": {
+              "$ref": "#/$defs/ChannelSelectionModel"
+            },
+            "title": "Channels To Align",
+            "type": "array",
+            "description": "Optional list of channels to apply the registration to. If `None` (default), registration is applied to all channels except the reference channel."
+          },
           "transformation_table_name": {
             "default": "Channel_Registration_Transforms",
             "title": "Transformation Table Name",
@@ -743,311 +745,6 @@
         ],
         "type": "object",
         "title": "ApplyChannelRegistrationElastix"
-      },
-      "docs_link": "https://github.com/pelkmanslab/abbott"
-    },
-    {
-      "name": "Convert Cellvoyager Multiplexing to existing OME-Zarr",
-      "category": "Conversion",
-      "modality": "HCS",
-      "tags": [
-        "Yokogawa",
-        "Cellvoyager",
-        "2D",
-        "3D"
-      ],
-      "docs_info": "### Purpose\n- Converts **multiplexed 2D and 3D images from CellVoyager CV7000/8000** systems into OME-Zarr format, storing each acquisition as a separate OME-Zarr image, **extending an existing** OME-Zarr plate.\n- Creates **OME-Zarr HCS plates**, combining all fields of view for each acquisition in a well into a single image.\n- Saves Fractal **region-of-interest (ROI) tables** for both individual fields of view and the entire well.\n- Handles overlapping fields of view by adjusting their positions to be non-overlapping, while preserving the original position data as additional columns in the ROI tables.\n\n### Limitations\n- This task currently does not support time-resolved data and ignores the time fields in CellVoyager metadata.\n",
-      "type": "converter_compound",
-      "executable_non_parallel": "fractal_tasks/cellvoyager_to_ome_zarr_init_extend_multiplex.py",
-      "executable_parallel": "fractal_tasks/cellvoyager_compute_omezarr.py",
-      "meta_non_parallel": {
-        "cpus_per_task": 1,
-        "mem": 4000
-      },
-      "meta_parallel": {
-        "cpus_per_task": 1,
-        "mem": 4000
-      },
-      "args_schema_non_parallel": {
-        "$defs": {
-          "MultiplexingAcquisition": {
-            "description": "Input class for Multiplexing Cellvoyager converter",
-            "properties": {
-              "image_dir": {
-                "title": "Image Dir",
-                "type": "string"
-              },
-              "allowed_channels": {
-                "items": {
-                  "$ref": "#/$defs/OmeroChannel"
-                },
-                "title": "Allowed Channels",
-                "type": "array"
-              }
-            },
-            "required": [
-              "image_dir",
-              "allowed_channels"
-            ],
-            "title": "MultiplexingAcquisition",
-            "type": "object"
-          },
-          "OmeroChannel": {
-            "description": "Custom class for Omero channels, based on OME-NGFF v0.4.",
-            "properties": {
-              "wavelength_id": {
-                "title": "Wavelength Id",
-                "type": "string"
-              },
-              "index": {
-                "title": "Index",
-                "type": "integer"
-              },
-              "label": {
-                "title": "Label",
-                "type": "string"
-              },
-              "window": {
-                "allOf": [
-                  {
-                    "$ref": "#/$defs/Window"
-                  }
-                ],
-                "title": "Window"
-              },
-              "color": {
-                "title": "Color",
-                "type": "string"
-              },
-              "active": {
-                "default": true,
-                "title": "Active",
-                "type": "boolean"
-              },
-              "coefficient": {
-                "default": 1,
-                "title": "Coefficient",
-                "type": "integer"
-              },
-              "inverted": {
-                "default": false,
-                "title": "Inverted",
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "wavelength_id"
-            ],
-            "title": "OmeroChannel",
-            "type": "object"
-          },
-          "Window": {
-            "description": "Custom class for Omero-channel window, based on OME-NGFF v0.4.",
-            "properties": {
-              "min": {
-                "title": "Min",
-                "type": "integer"
-              },
-              "max": {
-                "title": "Max",
-                "type": "integer"
-              },
-              "start": {
-                "title": "Start",
-                "type": "integer"
-              },
-              "end": {
-                "title": "End",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "start",
-              "end"
-            ],
-            "title": "Window",
-            "type": "object"
-          }
-        },
-        "additionalProperties": false,
-        "properties": {
-          "zarr_dir": {
-            "title": "Zarr Dir",
-            "type": "string",
-            "description": "path to the directory of the existing OME-Zarr file where the new acquisitions will be added. (standard argument for Fractal tasks, managed by Fractal server)."
-          },
-          "acquisitions": {
-            "additionalProperties": {
-              "$ref": "#/$defs/MultiplexingAcquisition"
-            },
-            "title": "Acquisitions",
-            "type": "object",
-            "description": "dictionary of acquisitions. Each key is the acquisition identifier (normally 0, 1, 2, 3 etc.). Each item defines the acquisition by providing the image_dir and the allowed_channels."
-          },
-          "plate_name": {
-            "title": "Plate Name",
-            "type": "string",
-            "description": "If specified, tries to extend an existing plate with this name e.g. `AssayPlate_Greiner_CELLSTAR655090`. If `None`, tries to extract the plate name from the zarr_dir."
-          },
-          "include_glob_patterns": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Include Glob Patterns",
-            "type": "array",
-            "description": "If specified, only parse images with filenames that match with all these patterns. Patterns must be defined as in https://docs.python.org/3/library/fnmatch.html, Example: `image_glob_pattern=[\"*_B03_*\"]` => only process well B03 `image_glob_pattern=[\"*_C09_*\", \"*F016*\", \"*Z[0-5][0-9]C*\"]` => only process well C09, field of view 16 and Z planes 0-59. Can interact with exclude_glob_patterns: All included images - all excluded images gives the final list of images to process"
-          },
-          "exclude_glob_patterns": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Exclude Glob Patterns",
-            "type": "array",
-            "description": "If specified, exclude any image where the filename matches any of the exclusion patterns. Patterns are specified the same as for include_glob_patterns."
-          },
-          "num_levels": {
-            "default": 5,
-            "title": "Num Levels",
-            "type": "integer",
-            "description": "Number of resolution-pyramid levels. If set to `5`, there will be the full-resolution level and 4 levels of downsampled images."
-          },
-          "coarsening_xy": {
-            "default": 2,
-            "title": "Coarsening Xy",
-            "type": "integer",
-            "description": "Linear coarsening factor between subsequent levels. If set to `2`, level 1 is 2x downsampled, level 2 is 4x downsampled etc."
-          },
-          "image_extension": {
-            "default": "tif",
-            "title": "Image Extension",
-            "type": "string",
-            "description": "Filename extension of images (e.g. `\"tif\"` or `\"png\"`)."
-          },
-          "metadata_table_files": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Metadata Table Files",
-            "type": "object",
-            "description": "If `None`, parse Yokogawa metadata from mrf/mlf files in the input_path folder; else, a dictionary of key-value pairs like `(acquisition, path)` with `acquisition` a string like the key of the `acquisitions` dict and `path` pointing to a csv file containing the parsed metadata table."
-          },
-          "overwrite": {
-            "default": false,
-            "title": "Overwrite",
-            "type": "boolean",
-            "description": "If `True`, overwrite the task output."
-          }
-        },
-        "required": [
-          "zarr_dir",
-          "acquisitions"
-        ],
-        "type": "object",
-        "title": "CellvoyagerToOmeZarrInitExtendMultiplex"
-      },
-      "args_schema_parallel": {
-        "$defs": {
-          "ChunkSizes": {
-            "description": "Chunk size settings for OME-Zarrs.",
-            "properties": {
-              "t": {
-                "title": "T",
-                "type": "integer"
-              },
-              "c": {
-                "default": 1,
-                "title": "C",
-                "type": "integer"
-              },
-              "z": {
-                "default": 10,
-                "title": "Z",
-                "type": "integer"
-              },
-              "y": {
-                "title": "Y",
-                "type": "integer"
-              },
-              "x": {
-                "title": "X",
-                "type": "integer"
-              }
-            },
-            "title": "ChunkSizes",
-            "type": "object"
-          },
-          "InitArgsCellVoyager": {
-            "description": "Arguments to be passed from cellvoyager converter init to compute",
-            "properties": {
-              "image_dir": {
-                "title": "Image Dir",
-                "type": "string"
-              },
-              "plate_prefix": {
-                "title": "Plate Prefix",
-                "type": "string"
-              },
-              "well_ID": {
-                "title": "Well Id",
-                "type": "string"
-              },
-              "image_extension": {
-                "title": "Image Extension",
-                "type": "string"
-              },
-              "include_glob_patterns": {
-                "items": {
-                  "type": "string"
-                },
-                "title": "Include Glob Patterns",
-                "type": "array"
-              },
-              "exclude_glob_patterns": {
-                "items": {
-                  "type": "string"
-                },
-                "title": "Exclude Glob Patterns",
-                "type": "array"
-              },
-              "acquisition": {
-                "title": "Acquisition",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "image_dir",
-              "plate_prefix",
-              "well_ID",
-              "image_extension"
-            ],
-            "title": "InitArgsCellVoyager",
-            "type": "object"
-          }
-        },
-        "additionalProperties": false,
-        "properties": {
-          "zarr_url": {
-            "title": "Zarr Url",
-            "type": "string",
-            "description": "Path or url to the individual OME-Zarr image to be processed. (standard argument for Fractal tasks, managed by Fractal server)."
-          },
-          "init_args": {
-            "$ref": "#/$defs/InitArgsCellVoyager",
-            "title": "Init Args",
-            "description": "Intialization arguments provided by `create_cellvoyager_ome_zarr_init`."
-          },
-          "chunk_sizes": {
-            "$ref": "#/$defs/ChunkSizes",
-            "title": "Chunk Sizes",
-            "description": "Used to overwrite the default chunk sizes for the OME-Zarr. By default, the task will chunk the same as the microscope field of view size, with 10 z planes per chunk. For example, that can mean c: 1, z: 10, y: 2160, x:2560"
-          }
-        },
-        "required": [
-          "zarr_url",
-          "init_args"
-        ],
-        "type": "object",
-        "title": "CellvoyagerComputeOmezarr"
       },
       "docs_link": "https://github.com/pelkmanslab/abbott"
     },

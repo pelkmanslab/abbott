@@ -30,26 +30,34 @@ authors = [
 ]
 
 # Required Python version and dependencies
-requires-python = ">=3.11"
+requires-python = ">=3.11, <3.12"
 dependencies = [
     "fractal-tasks-core == 1.6.0",
-    "numpy<2",
-    "itk<5.4.4", 
+    "itk<5.4.4",
     "itk-elastix", 
-    "h5py==3.14.0",
-    "hdf5plugin<4.2",
-    "scikit-image <= 0.25.2",
-    "pyarrow ==20.0.0",
-    "warpfield @ git+https://github.com/rhornb/warpfield.git@dev", # pin to cuda11
-    "dask<=2025.9.1", #79
-    "scipy<1.17",
-    "pandas<2.0.0",
+    "h5py",
+    "scikit-image",
+    "warpfield == 0.2.2",
+    "cupy-cuda12x[ctk]", # cupy>=14 no longer bundles CUDA libs (cuBLAS, cuFFT, NVRTC, ...)
+    "scipy",
 ]
 
-# Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
-# https://peps.python.org/pep-0621/#dependencies-optional-dependencies)
+# Optional dependencies 
 [project.optional-dependencies]
-dev = ["devtools", "hatch", "pytest", "requests", "jsonschema", "ruff", "pre-commit", "pooch", "pytest-cov"]
+
+test = ["pytest", "requests", "jsonschema", "devtools"]
+
+dev = [
+    "notebook",
+    "devtools",
+    "hatch",
+    "pytest",
+    "requests",
+    "jsonschema",
+    "ruff",
+    "pre-commit",
+]
+
 
 # https://docs.astral.sh/ruff
 [tool.ruff]
@@ -92,3 +100,41 @@ ignore = [
 docstring-code-format = true
 docstring-code-line-length = 89
 skip-magic-trailing-comma = false  # default is false
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+c-compiler = "*"
+cxx-compiler = "*"
+
+[tool.pixi.pypi-dependencies]
+abbott = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.tasks]
+install-pre-commit = { cmd = ["pre-commit", "install"] }
+format-imports = { cmd = ["ruff", "check", "--select", "I", "--fix"] }
+format-code = { cmd = ["ruff", "format", "."] }
+
+create-manifest = { cmd = [
+    "fractal-manifest",
+    "create",
+    "--package",
+    "abbott",
+] }
+
+test = { cmd = ["pytest", "./tests/"] }
+
+init-tasks = [
+    { task = "install-pre-commit", environment = "dev" },
+    { task = "format-code", environment = "dev" },
+    { task = "format-imports", environment = "dev" },
+    { task = "create-manifest", environment = "dev" },
+    { task = "test", environment = "test" },
+]

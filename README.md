@@ -3,43 +3,78 @@
 [![CI Status](https://github.com/pelkmanslab/abbott/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/pelkmanslab/abbott/actions/workflows/build_and_test.yml)
 [![codecov](https://codecov.io/github/pelkmanslab/abbott/graph/badge.svg?token=BF9NP4YLO6)](https://codecov.io/github/pelkmanslab/abbott)
 
-3D Multiplexed Image Analysis Task Collection
+A [Fractal](https://fractal-analytics-platform.github.io/) task collection for 3D multiplexed image analysis: registration of multiplexed cycles and channels, plus helper tasks for conversion and label processing.
 
 ## Available Tasks
 
-| Task | Description | Passing |
-| --- | --- | --- |
-| Convert Cellvoyager Multiplexing to existing OME-Zarr | Converts CV7000/CV8000 images and extends to existing OME-Zarr file.| ✓ |
-| Convert Abbott-legacy H5 to OME-Zarr | Converts H5 files in abbott-legacy format to OME-Zarr files| ✓ |
-| Compute Registration (elastix) | Compute rigid/affine/b-spline registration for aligning multiplexed 3D images across cycles.|✓|
-| Apply Registration (elastix) | Apply rigid/affine/b-spline registration to images.|✓|
-| Compute Registration (warpfield) | Compute warpfield registration (see https://github.com/danionella/warpfield) for aligning multiplexed 3D images across cycles.|✓|
-| Apply Registration (warpfield) | Apply warpfield registration.|✓|
-| Compute Channel Registration (elastix) | Compute similarity registration of all channels in an acquisition to a reference channel.|✓|
-| Apply Channel Registration (elastix) | Apply similarity registration to multi-channel acquisition.|✓|
-| Stardist Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks) |✓|
-| Seeded Watershed Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks) |✓|
-| Upsample Label Image | Upsamples label images to the highest image resolution. Useful if segmentation was peformed on e.g. level 1 to avoid resolution mismatch in downstream tasks. |✓|
+### Registration
 
-For Feature Extraction, see [abbott-features](https://github.com/pelkmanslab/abbott-features)
+| Task | Description |
+| --- | --- |
+| Compute Registration (elastix) | Computes rigid/affine/b-spline registration to align multiplexed 3D images across cycles. |
+| Apply Registration (elastix) | Applies the computed elastix registration to images. |
+| Compute Registration (warpfield) | Computes [warpfield](https://github.com/danionella/warpfield) registration to align multiplexed 3D images across cycles. Requires a GPU. |
+| Apply Registration (warpfield) | Applies the computed warpfield registration. Requires a GPU. |
+| Compute Channel Registration (elastix) | Computes similarity registration of all channels in an acquisition to a reference channel. |
+| Apply Channel Registration (elastix) | Applies channel registration to a multi-channel acquisition. |
 
 > [!IMPORTANT]
-> Warpfield Registration Tasks currently only run with CUDA > 11.x. 
+> The warpfield registration tasks currently require CUDA > 11.x.
+
+### Conversion
+
+| Task | Description |
+| --- | --- |
+| Convert abbott-legacy H5 to OME-Zarr | Converts H5 files in the abbott-legacy format to OME-Zarr. |
+
+### Image Processing
+
+| Task | Description |
+| --- | --- |
+| Upsample Label Image | Upsamples label images to the highest image resolution. Useful when segmentation was performed on a lower resolution level (e.g. level 1), to avoid resolution mismatches in downstream tasks. |
+
+An example multiplexing workflow is available in [examples/](examples/).
+
+### Moved or discontinued tasks
+
+| Task | Status |
+| --- | --- |
+| Convert Cellvoyager Multiplexing to existing OME-Zarr | **Discontinued.** Use `Convert Yokogawa CellVoyager Plate to OME-Zarr` from [fractal-uzh-converters](https://github.com/fractal-analytics-platform/fractal-uzh-converters). |
+| Stardist Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks). |
+| Seeded Watershed Segmentation | Moved to [abbott-segmentation-tasks](https://github.com/pelkmanslab/abbott-segmentation-tasks). |
+
+For feature extraction, see [abbott-features](https://github.com/pelkmanslab/abbott-features).
 
 ## Installation
 
-To install this task package on a Fractal server, get the whl from the Github release and use the local task collection.
+### On a Fractal server
 
-To install this package locally:
-```
+Download the `.tar.gz` from the latest [GitHub release](https://github.com/pelkmanslab/abbott/releases) and install it with Fractal's pixi task collection.
+
+### Locally
+
+Requires Python 3.11.
+
+```bash
 git clone https://github.com/pelkmanslab/abbott
 cd abbott
 pip install -e .
 ```
 
-For development:
-```
+## Development
+
+The development environment is managed with [pixi](https://pixi.sh):
+
+```bash
 git clone https://github.com/pelkmanslab/abbott
 cd abbott
-pip install -e ".[dev]" 
+pixi run init-tasks    # install pre-commit hooks, format code, build manifest, run tests
+```
+
+Individual tasks:
+
+```bash
+pixi run -e dev create-manifest   # regenerate __FRACTAL_MANIFEST__.json
+pixi run -e dev format-code       # ruff format
+pixi run -e test test             # run the test suite
 ```

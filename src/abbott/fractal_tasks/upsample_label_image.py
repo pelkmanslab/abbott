@@ -82,7 +82,7 @@ def upsample_label_image(
     # Check if upsampling is needed
     if full_res_shape == actual_res_shape:
         return ValueError(
-            "Label image already at full resolution. " "No upsampling needed."
+            "Label image already at full resolution. No upsampling needed."
         )
 
     ##############
