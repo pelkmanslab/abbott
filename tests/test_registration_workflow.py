@@ -525,3 +525,88 @@ def test_channel_registration_on_labels_all_align_labels_missing(test_data_dir):
             iterator_configuration=iterator_configuration,
             level_path=0,
         )
+
+
+def test_channel_registration_selected_channels(test_data_dir):
+    """Registration is applied only to channels listed in channels_to_align."""
+    parameter_files = [
+        str(Path(__file__).parent / "data/params_similarity_level1.txt"),
+    ]
+    roi_table = "FOV_ROI_table"
+    level = 4
+    reference_wavelength = "A01_C01"
+    zarr_url = f"{test_data_dir}/B/03/0"
+
+    iterator_configuration = IteratorConfiguration(roi_table=roi_table)
+
+    compute_channel_registration_elastix(
+        zarr_url=zarr_url,
+        reference_channel=ChannelSelectionModel(
+            mode="wavelength_id", identifier=reference_wavelength
+        ),
+        parameter_files=parameter_files,
+        iterator_configuration=iterator_configuration,
+        level_path=level,
+        lower_rescale_quantile=0.0,
+        upper_rescale_quantile=0.99,
+    )
+
+    apply_channel_registration_elastix(
+        zarr_url=zarr_url,
+        reference_channel=ChannelSelectionModel(
+            mode="wavelength_id", identifier=reference_wavelength
+        ),
+        channels_to_align=[
+            ChannelSelectionModel(mode="wavelength_id", identifier="A02_C04")
+        ],
+        iterator_configuration=iterator_configuration,
+        level_path=level,
+        overwrite_input=False,
+    )
+    new_zarr_url = f"{zarr_url}_channels_registered"
+    zarr.open_group(new_zarr_url, mode="r")
+
+
+def test_channel_registration_ref_in_channels_to_align_warning(test_data_dir, caplog):
+    """Warning is logged when the reference channel is included in channels_to_align."""
+    import logging
+
+    parameter_files = [
+        str(Path(__file__).parent / "data/params_similarity_level1.txt"),
+    ]
+    roi_table = "FOV_ROI_table"
+    level = 4
+    reference_wavelength = "A01_C01"
+    zarr_url = f"{test_data_dir}/B/03/0"
+
+    iterator_configuration = IteratorConfiguration(roi_table=roi_table)
+
+    compute_channel_registration_elastix(
+        zarr_url=zarr_url,
+        reference_channel=ChannelSelectionModel(
+            mode="wavelength_id", identifier=reference_wavelength
+        ),
+        parameter_files=parameter_files,
+        iterator_configuration=iterator_configuration,
+        level_path=level,
+        lower_rescale_quantile=0.0,
+        upper_rescale_quantile=0.99,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        apply_channel_registration_elastix(
+            zarr_url=zarr_url,
+            reference_channel=ChannelSelectionModel(
+                mode="wavelength_id", identifier=reference_wavelength
+            ),
+            channels_to_align=[
+                ChannelSelectionModel(
+                    mode="wavelength_id", identifier=reference_wavelength
+                )
+            ],
+            iterator_configuration=iterator_configuration,
+            level_path=level,
+            overwrite_input=False,
+        )
+
+    assert "will be skipped" in caplog.text

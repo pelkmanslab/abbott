@@ -201,7 +201,7 @@ def apply_registration_elastix(
 
     if copy_labels:
         logger.info(
-            "Copying labels from the reference acquisition to the new " "acquisition."
+            "Copying labels from the reference acquisition to the new acquisition."
         )
 
         label_names = ome_zarr_ref.list_labels()

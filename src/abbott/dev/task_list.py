@@ -57,7 +57,6 @@ TASK_LIST = [
     ),
     ParallelTask(
         name="Compute Channel Registration (elastix)",
-        input_types=dict(channels_registered=False),
         executable="fractal_tasks/compute_channel_registration_elastix.py",
         meta={"cpus_per_task": 4, "mem": 16000},
         category="Registration",
@@ -67,7 +66,6 @@ TASK_LIST = [
     ),
     ParallelTask(
         name="Apply Channel Registration (elastix)",
-        input_types=dict(channels_registered=False),
         executable="fractal_tasks/apply_channel_registration_elastix.py",
         output_types=dict(channels_registered=True),
         meta={"cpus_per_task": 4, "mem": 16000},
@@ -75,17 +73,6 @@ TASK_LIST = [
         modality="HCS",
         tags=["Multiplexing", "3D"],
         docs_info="file:docs_info/apply_channel_registration.md",
-    ),
-    ConverterCompoundTask(
-        name="Convert Cellvoyager Multiplexing to existing OME-Zarr",
-        executable_init="fractal_tasks/cellvoyager_to_ome_zarr_init_extend_multiplex.py",
-        executable="fractal_tasks/cellvoyager_compute_omezarr.py",
-        meta_init={"cpus_per_task": 1, "mem": 4000},
-        meta={"cpus_per_task": 1, "mem": 4000},
-        category="Conversion",
-        modality="HCS",
-        tags=["Yokogawa", "Cellvoyager", "2D", "3D"],
-        docs_info="file:docs_info/convert_cellvoyager_multiplex_extend.md",
     ),
     ParallelTask(
         name="Upsample Label Image",

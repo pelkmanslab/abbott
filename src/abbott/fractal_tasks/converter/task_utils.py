@@ -324,8 +324,42 @@ def h5_load(
     if dset is None:
         raise FileNotFoundError(
             f"Dataset not found for channel {channel.label}, "
-            f"wavelength {channel.wavelength_id}, cycle {cycle}, "
-            f"level {level}, img_type {img_type}."
+            f"cycle {cycle}, level {level}, img_type {img_type}."
+        )
+
+    scale = dset.attrs["element_size_um"]
+    # Load lazily using Dask
+    arr = da.from_array(dset)
+    return arr, scale, f  # Return the file handle to close it later
+
+
+def h5_load_label(
+    input_path: str,
+    stain: str,
+    level: int,
+    cycle: int,
+    img_type: str,
+    h5_handle: Optional[h5py.File] = None,
+):
+    """Load a dataset from an HDF5 file based on metadata."""
+    if h5_handle is not None:
+        f = h5_handle
+    else:
+        f = h5py.File(input_path, "r")
+
+    dset = h5_select(
+        f=f,
+        attrs_select={
+            "img_type": img_type,
+            "cycle": cycle,
+            "stain": stain,
+            "level": level,
+        },
+    )
+    if dset is None:
+        raise FileNotFoundError(
+            f"Dataset not found for stain {stain}, "
+            f"cycle {cycle}, level {level}, img_type {img_type}."
         )
 
     scale = dset.attrs["element_size_um"]

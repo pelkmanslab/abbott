@@ -156,18 +156,27 @@ def convert_abbottlegacyh5_to_omezarr_init(
 
     ###
     # Identify all wells
-    include_patterns = [f"*{h5_extension.value}"]
+    h5_pattern = [f"*{h5_extension.value}"]
     exclude_patterns = []
-    if include_glob_patterns:
-        include_patterns.extend(include_glob_patterns)
     if exclude_glob_patterns:
         exclude_patterns.extend(exclude_glob_patterns)
 
-    input_files = glob_with_multiple_patterns(
-        folder=str(input_dir),
-        include_patterns=include_patterns,
-        exclude_patterns=exclude_patterns,
-    )
+    if include_glob_patterns:
+        # glob_with_multiple_patterns uses AND logic across patterns, so run
+        # once per include pattern and union the results (OR logic).
+        input_files = set()
+        for pattern in include_glob_patterns:
+            input_files |= glob_with_multiple_patterns(
+                folder=str(input_dir),
+                include_patterns=[*h5_pattern, pattern],
+                exclude_patterns=exclude_patterns,
+            )
+    else:
+        input_files = glob_with_multiple_patterns(
+            folder=str(input_dir),
+            include_patterns=h5_pattern,
+            exclude_patterns=exclude_patterns,
+        )
 
     wells = [parse_filename(os.path.basename(fn))["well"] for fn in input_files]
     wells = sorted(set(wells))

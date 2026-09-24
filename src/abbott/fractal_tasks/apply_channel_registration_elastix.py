@@ -39,6 +39,15 @@ from abbott.registration.utils import IteratorConfiguration
 logger = logging.getLogger(__name__)
 
 
+def _resolve_channel_index(ome_zarr, channel_selection: ChannelSelectionModel) -> int:
+    if channel_selection.mode == "label":
+        return ome_zarr.get_channel_idx(channel_label=channel_selection.identifier)
+    elif channel_selection.mode == "wavelength_id":
+        return ome_zarr.get_channel_idx(wavelength_id=channel_selection.identifier)
+    else:  # mode == "index"
+        return int(channel_selection.identifier)
+
+
 def load_parameter_object(parameter_dict: dict) -> itk.ParameterObject:
     """Load one or multiple parameter files into a parameter object.
 
@@ -112,6 +121,7 @@ def apply_channel_registration_elastix(
     # Core parameters
     reference_channel: ChannelSelectionModel,
     iterator_configuration: IteratorConfiguration,
+    channels_to_align: list[ChannelSelectionModel] | None = None,
     transformation_table_name: str = "Channel_Registration_Transforms",
     copy_labels: bool = True,
     level_path: int = 0,
@@ -126,12 +136,15 @@ def apply_channel_registration_elastix(
         zarr_url: Path or url to the individual OME-Zarr image to be processed.
             (standard argument for Fractal tasks, managed by Fractal server).
         reference_channel: Reference channel used during registration computation.
-        transformation_table_name (str): Name of the table in which the transformations
-            have been stored in preceeding computation task. Defaults to
-            "Channel_Registration_Transforms".
         iterator_configuration (IteratorConfiguration | None): Configuration
             for the segmentation iterator. This can be used to specify a ROI
             table (standard or masking) to restrict processing to specific ROIs.
+        channels_to_align: Optional list of channels to apply the registration
+            to. If `None` (default), registration is applied to all channels
+            except the reference channel.
+        transformation_table_name (str): Name of the table in which the transformations
+            have been stored in preceeding computation task. Defaults to
+            "Channel_Registration_Transforms".
         copy_labels: Whether to copy the labels from the reference acquisition
             to the new registered image.
         level_path (str | None): If the OME-Zarr has multiple resolution levels,
@@ -156,22 +169,25 @@ def apply_channel_registration_elastix(
     ome_zarr = open_ome_zarr_container(zarr_url)
     logger.info(f"{ome_zarr=}")
 
-    # Get reference channel index using ChannelSelectionModel
-    if reference_channel.mode == "label":
-        ref_channel_id = ome_zarr.get_channel_idx(
-            channel_label=reference_channel.identifier
-        )
-    elif reference_channel.mode == "wavelength_id":
-        ref_channel_id = ome_zarr.get_channel_idx(
-            wavelength_id=reference_channel.identifier
-        )
-    else:  # mode == "index"
-        ref_channel_id = int(reference_channel.identifier)
+    # Get reference channel index
+    ref_channel_id = _resolve_channel_index(ome_zarr, reference_channel)
 
-    # Get channel indices for channels to be aligned (all channels except reference)
-    channels_align_ids = [
-        i for i in range(ome_zarr.num_channels) if i != ref_channel_id
-    ]
+    # Get channel indices for channels to be aligned
+    if channels_to_align is None:
+        channels_align_ids = [
+            i for i in range(ome_zarr.num_channels) if i != ref_channel_id
+        ]
+    else:
+        channels_align_ids = [
+            _resolve_channel_index(ome_zarr, ch) for ch in channels_to_align
+        ]
+        if ref_channel_id in channels_align_ids:
+            logger.warning(
+                f"Reference channel (index {ref_channel_id}) is included in "
+                "`channels_to_align` and will be skipped."
+            )
+            channels_align_ids = [i for i in channels_align_ids if i != ref_channel_id]
+    logger.info(f"Channels to align: {channels_align_ids}")
 
     # Validate masking configuration
     if use_masks:
@@ -211,6 +227,9 @@ def apply_channel_registration_elastix(
     # Core processing loop
     logger.info("Starting processing...")
     run_times = []
+
+    image = ome_zarr.get_image(path=str(level_path))
+    registered_image = registered_ome_zarr.get_image(path=str(level_path))
 
     if use_masks:
         # Copy the masking label and table to the registered OME-Zarr so that
@@ -277,9 +296,7 @@ def apply_channel_registration_elastix(
         registered_masked_image.consolidate()
 
     else:
-        image = ome_zarr.get_image(path=str(level_path))
         logger.info(f"{image=}")
-        registered_image = registered_ome_zarr.get_image(path=str(level_path))
 
         iterator = ImageProcessingIterator(
             input_image=image,
