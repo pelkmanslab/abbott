@@ -37,8 +37,9 @@ dependencies = [
     "itk-elastix", 
     "h5py",
     "scikit-image",
-    "warpfield == 0.2.2",
-    "cupy-cuda12x[ctk]", # cupy>=14 no longer bundles CUDA libs (cuBLAS, cuFFT, NVRTC, ...)
+    # warpfield requires cupy-cuda12x, which has no macOS wheels (CUDA is unavailable)
+    "warpfield == 0.2.2; sys_platform != 'darwin'",
+    "cupy-cuda12x[ctk]; sys_platform != 'darwin'", # cupy>=14 no longer bundles CUDA libs (cuBLAS, cuFFT, NVRTC, ...)
     "scipy",
 ]
 
@@ -103,7 +104,7 @@ skip-magic-trailing-comma = false  # default is false
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tool.pixi.dependencies]
 c-compiler = "*"
